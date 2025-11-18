@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Furgonetas - Liebre Express SL</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="h-full bg-gray-900 text-gray-100 p-4 md:p-8">
+
+    <div id="login-modal" class="max-w-md mx-auto mt-20 p-8 bg-slate-900/40 backdrop-blur-lg rounded-2xl shadow-2xl border border-slate-700">
+        <h1 class="text-3xl font-bold text-white text-center mb-4">
+            Liebre<span class="text-blue-400">Express</span> SL
+        </h1>
+        <h2 class="text-xl font-semibold text-gray-200 text-center mb-8">
+            Control de Flota
+        </h2>
+        <form id="login-form" class="space-y-6">
+            <div>
+                <label for="password-input" class="block text-sm font-medium text-gray-300 mb-2">Contraseña de Acceso:</label>
+                <input type="password" id="password-input" name="password" required
+                       class="w-full text-lg px-4 py-3 bg-slate-800/70 border border-slate-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200">
+            </div>
+            <div id="login-status" class="hidden p-3 rounded-lg text-center text-sm font-medium"></div>
+            <button type="submit" id="login-button" class="w-full text-lg font-bold py-3 px-6 rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-xl transition duration-300">
+                Entrar
+            </button>
+        </form>
+    </div>
+
+    <div id="app-container" class="max-w-5xl mx-auto" style="display: none;">
+        
+        <header class="text-center my-6 md:my-10">
+            <h1 class="text-4xl md:text-5xl font-bold text-white tracking-tight">
+                Liebre<span class="text-blue-400">Express</span> SL
+            </h1>
+            <div id="global-visit-counter" class="text-center text-xs text-gray-500 mt-2">
+                Cargando visitas...
+            </div>
+        </header>
+
+        <nav class="mb-8">
+            <div class="flex space-x-2 md:space-x-4 border-b border-slate-700 overflow-x-auto">
+                <a href="#" id="nav-link-page-operativa-vor" class="nav-link py-3 px-4 md:px-5 transition-all border-b-2 font-semibold text-white border-blue-500 whitespace-nowrap" data-page="page-operativa-vor">
+                    Operativas/VOR
+                </a>
+                <a href="#" id="nav-link-page-guantera" class="nav-link py-3 px-4 md:px-5 transition-all border-b-2 font-medium text-gray-400 border-transparent hover:text-white hover:border-blue-400 whitespace-nowrap" data-page="page-guantera">
+                    Guantera
+                </a>
+                <a href="#" id="nav-link-page-qr-vans" class="nav-link py-3 px-4 md:px-5 transition-all border-b-2 font-medium text-gray-400 border-transparent hover:text-white hover:border-blue-400 whitespace-nowrap" data-page="page-qr-vans">
+                    QR
+                </a>
+                <a href="#" id="nav-link-page-seleccion-vans" class="nav-link py-3 px-4 md:px-5 transition-all border-b-2 font-medium text-gray-400 border-transparent hover:text-white hover:border-blue-400 whitespace-nowrap" data-page="page-seleccion-vans">
+                    Seleccion
+                </a>
+                <a href="#" id="nav-link-page-neumaticos" class="nav-link py-3 px-4 md:px-5 transition-all border-b-2 font-medium text-gray-400 border-transparent hover:text-white hover:border-blue-400 whitespace-nowrap" data-page="page-neumaticos">
+                    Neumaticos
+                </a>
+                <a href="#" id="nav-link-page-registro-alquiler" class="nav-link py-3 px-4 md:px-5 transition-all border-b-2 font-medium text-gray-400 border-transparent hover:text-white hover:border-blue-400 whitespace-nowrap" data-page="page-registro-alquiler">
+                    Alquiler
+                </a>
+                <a href="#" id="nav-link-page-gestionar-flota" class="nav-link py-3 px-4 md:px-5 transition-all border-b-2 font-medium text-gray-400 border-transparent hover:text-white hover:border-blue-400 whitespace-nowrap" data-page="page-gestionar-flota">
+                    Flota
+                </a>
+                <a href="#" id="nav-link-page-accidentes" class="nav-link py-3 px-4 md:px-5 transition-all border-b-2 font-medium text-gray-400 border-transparent hover:text-white hover:border-blue-400 whitespace-nowrap" data-page="page-accidentes">
+                    Accidentes
+                </a>
+            </div>
+        </nav>
+
+        <main id="page-container">
+
+            <div id="page-seleccion-vans" class="page-content hidden bg-slate-900/40 backdrop-blur-lg p-6 md:p-10 rounded-2xl shadow-2xl border border-slate-700">
+                
+                <div id="vans-choice-menu" class="vans-subpage">
+                    <h2 class="text-2xl md:text-3xl font-semibold text-gray-200 mb-8 text-center">
+                        Control de Furgonetas y Taller
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                        
+                        <button id="btn-show-van-upload" class="flex flex-col items-center justify-center p-8 bg-blue-600/70 rounded-2xl border border-blue-500 hover:bg-blue-600 transition-all cursor-pointer transform hover:scale-105 group">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-16 h-16 mb-3 text-blue-200 group-hover:text-white transition-colors duration-300">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 19.07a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                            </svg>
+                            <span class="text-2xl font-bold text-white">Actualizar Estado de Vehículo</span>
+                            <span class="text-sm text-blue-200">Reportar estado y recambios</span>
+                        </button>
+                        
+                        <button id="btn-show-van-gallery" class="flex flex-col items-center justify-center p-8 bg-slate-800/70 rounded-2xl border border-slate-700 hover:bg-slate-700 transition-all cursor-pointer transform hover:scale-105 group">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-16 h-16 mb-3 text-gray-400 group-hover:text-white transition-colors duration-300">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18c-2.305 0-4.408.867-6 2.292m0-14.25v14.25" />
+                            </svg>
+                            <span class="text-2xl font-bold text-white">Ver Tareas / Historial</span>
+                            <span class="text-sm text-gray-400">Ver tareas pendientes y completadas</span>
+                        </button>
+
+                        <button id="btn-show-stock" class="md:col-span-2 flex flex-col items-center justify-center p-8 bg-amber-600/70 rounded-2xl border border-amber-500 hover:bg-amber-600 transition-all cursor-pointer transform hover:scale-105 group">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-16 h-16 mb-3 text-amber-200 group-hover:text-white transition-colors duration-300">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0l-3-3m3 3l3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+                            </svg>
+                            <span class="text-2xl font-bold text-white">Stock Recambios</span>
+                            <span class="text-sm text-amber-200">Gestionar inventario de taller</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="vans-subpage-upload" class="vans-subpage hidden">
+                    <button class="btn-back-to-vans-choice text-blue-400 hover:text-blue-300 font-medium mb-4 transition-all">&larr; Volver al menú</button>
+                    <h2 class="text-2xl md:text-3xl font-semibold text-gray-200 mb-6 text-center">
+                        Crear Tarea Pendiente
+                    </h2>
+                    <div class="mb-6">
+                        <label for="search-van" class="block text-sm font-medium text-gray-300 mb-2">Buscar por Matrícula:</label>
+                        <input type="search" id="search-van" placeholder="Escribe una matrícula..."
+                               class="w-full text-lg px-4 py-3 bg-slate-800/70 border border-slate-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200">
+                    </div>
+                    <div class="space-y-4">
+                        <div id="van-list-container" class="space-y-4"></div>
+                        <div id="no-results-message" class="hidden text-center text-gray-400 py-8">
+                            <p class="text-lg font-medium">No se encontraron furgonetas con esa matrícula.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="vans-subpage-gallery" class="vans-subpage hidden">
+                    <div id="van-history-list-page">
+                        <button class="btn-back-to-vans-choice text-blue-400 hover:text-blue-300 font-medium mb-4 transition-all">&larr; Volver al menú</button>
+                        <h2 class="text-2xl md:text-3xl font-semibold text-gray-200 mb-8 text-center">Tareas / Historial de Vehículos</h2>
+                        
+                        <div class="mb-6">
+                            <label for="search-van-history" class="block text-sm font-medium text-gray-300 mb-2">Buscar por Matrícula:</label>
+                            <input type="search" id="search-van-history" placeholder="Escribe una matrícula..."
+                                   class="w-full text-lg px-4 py-3 bg-slate-800/70 border border-slate-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200">
+                        </div>
+                        
+                        <p id="history-loading-message" class="text-center text-gray-400">Cargando historial...</p>
+                        <div id="van-history-list-container" class="space-y-4">
+                        </div>
+                        <div id="van-history-no-results" class="hidden text-center text-gray-400 py-8">
+                            <p class="text-lg font-medium">No se encontraron historiales.</p>
+                        </div>
+                    </div>
+                    
+                    <div id="van-history-detail-page" class="hidden">
+                        <button id="btn-back-to-history-list" class="text-blue-400 hover:text-blue-300 font-medium mb-4 transition-all">&larr; Volver al listado</button>
+                        <h2 id="van-history-detail-title" class="text-2xl md:text-3xl font-semibold text-gray-200 mb-8 text-center">Historial de...</h2>
+                        <div id="van-history-detail-content" class="space-y-4">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="vans-subpage-stock" class="vans-subpage hidden">
+                    <button class="btn-back-to-vans-choice text-blue-400 hover:text-blue-300 font-medium mb-4 transition-all">&larr; Volver al menú</button>
+                    <h2 class="text-2xl md:text-3xl font-semibold text-gray-200 mb-6 text-center">
+                        Gestión de Stock de Recambios
+                    </h2>
+                    
+                    <div class="bg-slate-800/50 p-6 rounded-xl border border-slate-700 mb-8">
+                        <h3 class="text-lg font-semibold text-amber-300 mb-4">Añadir / Actualizar Recambio</h3>
+                        <form id="stock-form" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                            <div class="md:col-span-2">
+                                <label for="stock-name" class="block text-sm font-medium text-gray-300 mb-1">Nombre del Recambio:</label>
+                                <input type="text" id="stock-name" required placeholder="Ej: Bombilla H7, Escobillas..."
+                                       class="w-full text-sm px-3 py-3 bg-slate-700/70 border border-slate-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                            </div>
+                            <div>
+                                <label for="stock-quantity" class="block text-sm font-medium text-gray-300 mb-1">Cantidad:</label>
+                                <div class="flex space-x-2">
+                                    <input type="number" id="stock-quantity" required placeholder="0" min="0"
+                                           class="w-full text-sm px-3 py-3 bg-slate-700/70 border border-slate-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                                    <button type="submit" id="stock-save-btn" class="bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-4 rounded-lg transition-all">
+                                        Guardar
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                        <div id="stock-status-message" class="hidden mt-2 text-center text-sm font-medium"></div>
+                    </div>
+
+                    <div class="mb-4">
+                         <input type="search" id="search-stock" placeholder="Buscar recambio..."
+                               class="w-full text-sm px-4 py-3 bg-slate-800/70 border border-slate-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition duration-200">
+                    </div>
+
+                    <div id="stock-list-loading" class="text-center text-gray-400 my-4">Cargando inventario...</div>
+                    <div id="stock-list-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                        </div>
+                </div>
+
+            </div>
+
+            <div id="page-qr-vans" class="page-content hidden bg-slate-900/40 backdrop-blur-lg p-6 md:p-10 rounded-2xl shadow-2xl border border-slate-700">
+                <h2 class="text-2xl md:text-3xl font-semibold text-gray-200 mb-6 text-center">
+                    Listado de QR (VIN)
+                </h2>
+                <div class="mb-6">
+                    <label for="search-qr-van" class="block text-sm font-medium text-gray-300 mb-2">Buscar por Matrícula o VIN:</label>
+                    <input type="search" id="search-qr-van" placeholder="Escribe una matrícula o los últimos dígitos del VIN"
+                           class="w-full text-lg px-4 py-3 bg-slate-800/70 border border-slate-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200">
+                </div>
+                <div class="space-y-4">
+                    <div id="qr-van-list-container" class="space-y-4"></div>
+                    <div id="qr-no-results-message" class="hidden text-center text-gray-400 py-8">
+                        <p class="text-lg font-medium">No se encontraron furgonetas.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="page-neumaticos" class="page-content hidden bg-slate-900/40 backdrop-blur-lg p-6 md:p-10 rounded-2xl shadow-2xl border border-slate-700">
+                
+                <div id="neumaticos-choice-menu" class="neumaticos-subpage">
+                    <h2 class="text-2xl md:text-3xl font-semibold text-gray-200 mb-8 text-center">Control de Estado de Neumáticos</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                        
+                        <button id="btn-show-upload" class="flex flex-col items-center justify-center p-8 bg-blue-600/70 rounded-2xl border border-blue-500 hover:bg-blue-600 transition-all cursor-pointer transform hover:scale-105 group">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-16 h-16 mb-3 text-blue-200 group-hover:text-white transition-colors duration-300">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
+                            </svg>
+                            <span class="text-2xl font-bold text-white">Subir Estado</span>
+                            <span class="text-sm text-blue-200">Reportar estado actual</span>
+                        </button>
+                        
+                        <button id="btn-show-gallery" class="flex flex-col items-center justify-center p-8 bg-slate-800/70 rounded-2xl border border-slate-700 hover:bg-slate-700 transition-all cursor-pointer transform hover:scale-105 group">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-16 h-16 mb-3 text-gray-400 group-hover:text-white transition-colors duration-300">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125v-1.5c0-.621.504-1.125 1.125-1.125H5.25l1.125-1.125h12l1.125 1.125h2.625c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h17.25m-17.25 0a1.125 1.125 0 00-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m-17.25 0l-1.125-1.125m17.25 0l1.125-1.125m0 0l-1.125 1.125m-17.25 0l1.125 1.125m14.25-4.5l1.125-1.125m-17.25 0l1.125-1.125m14.25 0l-1.125 1.125m-14.25 0l-1.125 1.125" />
+                            </svg>
+                            <span class="text-2xl font-bold text-white">Ver Historial</span>
+                            <span class="text-sm text-gray-400">Ver historial de furgonetas</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="neumaticos-subpage-upload" class="neumaticos-subpage hidden">
+                    <button class="btn-back-to-neumaticos-choice text-blue-400 hover:text-blue-300 font-medium mb-4 transition-all">&larr; Volver al menú</button>
+                    <h2 class="text-2xl md:text-3xl font-semibold text-gray-200 mb-8 text-center">Subir Nuevo Estado</h2>
+                    
+                    <form id="tire-upload-form">
+                        <div class="mb-8">
+                            <label class="block text-lg font-semibold mb-3 text-blue-300"><span class="text-2xl align-middle">1.</span> Seleccionar Furgoneta</label>
+                            <input type="search" id="search-matricula-neumaticos" placeholder="Buscar matrícula..."
+                                   class="w-full text-md px-4 py-2 bg-slate-800/70 border border-slate-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 mb-3">
+                            <div id="matricula-list-neumaticos" class="max-h-60 overflow-y-auto space-y-2 rounded-lg bg-slate-800/50 p-3 border border-slate-700">
+                                </div>
+                            <div id="matricula-no-results-neumaticos" class="hidden text-center text-gray-400 py-4">
+                                <p>No se encontraron furgonetas.</p>
+                            </div>
+                            <input type="hidden" id="matricula-hidden-neumaticos" name="matricula">
+                        </div>
+
+                        <div>
+                            <label class="block text-lg font-semibold mb-6 text-blue-300"><span class="text-2xl align-middle">2.</span> Fotografías (Opcional)</label>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                                <div class="bg-slate-800/50 p-5 rounded-xl border border-slate-700 shadow-lg">
+                                    <label class="block text-md font-medium mb-3 text-gray-200">Neumático Delantero Derecho</label>
+                                    <img id="preview-fd" src="https://placehold.co/400x300/374151/E5E7EB?text=Sin+Imagen" alt="Vista previa" class="w-full h-48 object-cover rounded-md mb-4 bg-slate-700">
+                                    <input type="file" id="file-fd" name="file-fd" accept="image/*" capture="environment" class="hidden tire-photo-input">
+                                    <label for="file-fd" class="block w-full text-center bg-blue-600 text-white py-2 px-4 rounded-md font-semibold cursor-pointer transition-all hover:bg-blue-700">📸 Hacer Foto</label>
+                                </div>
+                                <div class="bg-slate-800/50 p-5 rounded-xl border border-slate-700 shadow-lg">
+                                    <label class="block text-md font-medium mb-3 text-gray-200">Neumático Delantero Izquierdo</label>
+                                    <img id="preview-fi" src="https://placehold.co/400x300/374151/E5E7EB?text=Sin+Imagen" alt="Vista previa" class="w-full h-48 object-cover rounded-md mb-4 bg-slate-700">
+                                    <input type="file" id="file-fi" name="file-fi" accept="image/*" capture="environment" class="hidden tire-photo-input">
+                                    <label for="file-fi" class="block w-full text-center bg-blue-600 text-white py-2 px-4 rounded-md font-semibold cursor-pointer transition-all hover:bg-blue-700">📸 Hacer Foto</label>
+                                </div>
+                                <div class="bg-slate-800/50 p-5 rounded-xl border border-slate-700 shadow-lg">
+                                    <label class="block text-md font-medium mb-3 text-gray-200">Neumático Trasero Derecho</label>
+                                    <img id="preview-tr" src="https://placehold.co/400x300/374151/E5E7EB?text=Sin+Imagen" alt="Vista previa" class="w-full h-48 object-cover rounded-md mb-4 bg-slate-700">
+                                    <input type="file" id="file-tr" name="file-tr" accept="image/*" capture="environment" class="hidden tire-photo-input">
+                                    <label for="file-tr" class="block w-full text-center bg-blue-600 text-white py-2 px-4 rounded-md font-semibold cursor-pointer transition-all hover:bg-blue-700">📸 Hacer Foto</label>
+                                </div>
+                                <div class="bg-slate-800/50 p-5 rounded-xl border border-slate-700 shadow-lg">
+                                    <label class="block text-md font-medium mb-3 text-gray-200">Neumático Trasero Izquierdo</label>
+                                    <img id="preview-ti" src="https://placehold.co/400x300/374151/E5E7EB?text=Sin+Imagen" alt="Vista previa" class="w-full h-48 object-cover rounded-md mb-4 bg-slate-700">
+                                    <input type="file" id="file-ti" name="file-ti" accept="image/*" capture="environment" class="hidden tire-photo-input">
+                                    <label for="file-ti" class="block w-full text-center bg-blue-600 text-white py-2 px-4 rounded-md font-semibold cursor-pointer transition-all hover:bg-blue-700">📸 Hacer Foto</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="status-message-neumaticos" class="hidden mt-6 p-4 rounded-lg text-center font-medium"></div>
+                        <div class="mt-10">
+                            <button type="submit" id="submit-button-neumaticos" class="w-full text-lg font-bold py-4 px-6 rounded-lg bg-green-600 hover:bg-green-700 text-white shadow-xl transition duration-300 ease-in-out transform hover:scale-105">
+                                Guardar Datos
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <div id="neumaticos-subpage-gallery" class="neumaticos-subpage hidden">
+                    <div id="tire-history-list-page">
+                        <button class="btn-back-to-neumaticos-choice text-blue-400 hover:text-blue-300 font-medium mb-4 transition-all">&larr; Volver al menú</button>
+                        <h2 class="text-2xl md:text-3xl font-semibold text-gray-200 mb-8 text-center">Historial de Estados de Neumáticos</h2>
+                        
+                        <div class="mb-6">
+                            <label for="search-tire-history" class="block text-sm font-medium text-gray-300 mb-2">Buscar por Matrícula:</label>
+                            <input type="search" id="search-tire-history" placeholder="Escribe una matrícula..."
+                                   class="w-full text-lg px-4 py-3 bg-slate-800/70 border border-slate-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200">
+                        </div>
+                        
+                        <p id="tire-history-loading-message" class="text-center text-gray-400">Cargando historial de neumáticos...</p>
+                        <div id="tire-history-list-container" class="space-y-4">
+                        </div>
+                        <div id="tire-history-no-results" class="hidden text-center text-gray-400 py-8">
+                            <p class="text-lg font-medium">No se encontraron historiales.</p>
+                        </div>
+                    </div>
+                    <div id="tire-history-detail-page" class="hidden">
+                        <button id="btn-back-to-tire-list" class="text-blue-400 hover:text-blue-300 font-medium mb-4 transition-all">&larr; Volver al listado</button>
+                        <h2 id="tire-history-detail-title" class="text-2xl md:text-3xl font-semibold text-gray-200 mb-8 text-center">Historial de...</h2>
+                        <div id="tire-history-detail-content" class="space-y-4">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="page-registro-alquiler" class="page-content hidden bg-slate-900/40 backdrop-blur-lg p-6 md:p-10 rounded-2xl shadow-2xl border border-slate-700">
+                
+                <div id="alquiler-choice-menu" class="alquiler-subpage">
+                    <h2 class="text-2xl md:text-3xl font-semibold text-gray-200 mb-8 text-center">Registro de Alquiler</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                        
+                        <button id="btn-show-rental-upload-entrega" class="flex flex-col items-center justify-center p-8 bg-blue-600/70 rounded-2xl border border-blue-500 hover:bg-blue-600 transition-all cursor-pointer transform hover:scale-105 group">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-16 h-16 mb-3 text-blue-200 group-hover:text-white transition-colors duration-300">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 8.25H7.5a2.25 2.25 0 00-2.25 2.25v9a2.25 2.25 0 002.25 2.25h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25H15M9 12l3 3m0 0l3-3m-3 3V2.25" />
+                            </svg>
+                            <span class="text-2xl font-bold text-white text-center">Registrar Entrega (Recibida)</span>
+                            <span class="text-sm text-blue-200 text-center">Registrar furgoneta que recibimos</span>
+                        </button>
+
+                        <button id="btn-show-rental-upload-devolucion" class="flex flex-col items-center justify-center p-8 bg-green-600/70 rounded-2xl border border-green-500 hover:bg-green-600 transition-all cursor-pointer transform hover:scale-105 group">
+                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-16 h-16 mb-3 text-green-200 group-hover:text-white transition-colors duration-300">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 11.25l-3-3m0 0l-3 3m3-3v7.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span class="text-2xl font-bold text-white text-center">Registrar Devolución (Salida)</span>
+                            <span class="text-sm text-green-200 text-center">Registrar furgoneta que devolvemos</span>
+                        </button>
+                        
+                        <button id="btn-show-rental-gallery" class="md:col-span-2 flex flex-col items-center justify-center p-8 bg-slate-800/70 rounded-2xl border border-slate-700 hover:bg-slate-700 transition-all cursor-pointer transform hover:scale-105 group">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-16 h-16 mb-3 text-gray-400 group-hover:text-white transition-colors duration-300">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18c-2.305 0-4.408.867-6 2.292m0-14.25v14.25" />
+                            </svg>
+                            <span class="text-2xl font-bold text-white">Ver Historial</span>
+                            <span class="text-sm text-gray-400">Ver todos los registros</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="alquiler-subpage-upload" class="alquiler-subpage hidden">
+                    <button class="btn-back-to-alquiler-choice text-blue-400 hover:text-blue-300 font-medium mb-4 transition-all">&larr; Volver al menú</button>
+                    <h2 id="rental-upload-title" class="text-2xl md:text-3xl font-semibold text-gray-200 mb-8 text-center">Nuevo Registro de Alquiler</h2>
+                    
+                    <form id="rental-upload-form" class="space-y-10">
+                        
+                        <input type="hidden" id="rental-tipo-registro" name="tipo_registro">
+                        
+                        <div>
+                            <label class="block text-lg font-semibold mb-3 text-blue-300"><span class="text-2xl align-middle">1.</span> Matrícula</label>
+                            <input type="text" id="rental-matricula" name="matricula" required maxlength="7" pattern="[0-9]{4}[A-Z]{3}"
+                                   class="w-full text-lg px-4 py-2 bg-slate-700/70 border border-slate-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                                   placeholder="0000XXX">
+                        </div>
+
+                        <div>
+                            <label class="block text-lg font-semibold mb-6 text-blue-300"><span class="text-2xl align-middle">2.</span> Fotografías del Vehículo</label>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                                    <label class="block text-md font-medium mb-2 text-gray-200">Frontal</label>
+                                    <img id="preview-rental-frontal" src="https://placehold.co/400x300/374151/E5E7EB?text=Sin+Imagen" alt="Vista previa" class="w-full h-32 object-cover rounded-md mb-3 bg-slate-700">
+                                    <input type="file" id="file-rental-frontal" data-key="frontal" accept="image/*" capture="environment" class="hidden rental-photo-input-single">
+                                    <label for="file-rental-frontal" class="block w-full text-center bg-blue-600 text-white py-2 px-3 rounded-md font-semibold cursor-pointer text-sm transition-all hover:bg-blue-700">📸 Foto</label>
+                                </div>
+                                <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                                    <label class="block text-md font-medium mb-2 text-gray-200">Derecha</label>
+                                    <img id="preview-rental-derecha" src="https://placehold.co/400x300/374151/E5E7EB?text=Sin+Imagen" alt="Vista previa" class="w-full h-32 object-cover rounded-md mb-3 bg-slate-700">
+                                    <input type="file" id="file-rental-derecha" data-key="derecha" accept="image/*" capture="environment" class="hidden rental-photo-input-single">
+                                    <label for="file-rental-derecha" class="block w-full text-center bg-blue-600 text-white py-2 px-3 rounded-md font-semibold cursor-pointer text-sm transition-all hover:bg-blue-700">📸 Foto</label>
+                                </div>
+                                <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                                    <label class="block text-md font-medium mb-2 text-gray-200">Trasera</label>
+                                    <img id="preview-rental-trasera" src="https://placehold.co/400x300/374151/E5E7EB?text=Sin+Imagen" alt="Vista previa" class="w-full h-32 object-cover rounded-md mb-3 bg-slate-700">
+                                    <input type="file" id="file-rental-trasera" data-key="trasera" accept="image/*" capture="environment" class="hidden rental-photo-input-single">
+                                    <label for="file-rental-trasera" class="block w-full text-center bg-blue-600 text-white py-2 px-3 rounded-md font-semibold cursor-pointer text-sm transition-all hover:bg-blue-700">📸 Foto</label>
+                                </div>
+                                <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                                    <label class="block text-md font-medium mb-2 text-gray-200">Izquierda</label>
+                                    <img id="preview-rental-izquierda" src="https://placehold.co/400x300/374151/E5E7EB?text=Sin+Imagen" alt="Vista previa" class="w-full h-32 object-cover rounded-md mb-3 bg-slate-700">
+                                    <input type="file" id="file-rental-izquierda" data-key="izquierda" accept="image/*" capture="environment" class="hidden rental-photo-input-single">
+                                    <label for="file-rental-izquierda" class="block w-full text-center bg-blue-600 text-white py-2 px-3 rounded-md font-semibold cursor-pointer text-sm transition-all hover:bg-blue-700">📸 Foto</label>
+                                </div>
+                                <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                                    <label class="block text-md font-medium mb-2 text-gray-200">Salpicadero</label>
+                                    <img id="preview-rental-salpicadero" src="https://placehold.co/400x300/374151/E5E7EB?text=Sin+Imagen" alt="Vista previa" class="w-full h-32 object-cover rounded-md mb-3 bg-slate-700">
+                                    <input type="file" id="file-rental-salpicadero" data-key="salpicadero" accept="image/*" capture="environment" class="hidden rental-photo-input-single">
+                                    <label for="file-rental-salpicadero" class="block w-full text-center bg-blue-600 text-white py-2 px-3 rounded-md font-semibold cursor-pointer text-sm transition-all hover:bg-blue-700">📸 Foto</label>
+                                </div>
+                                <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                                    <label class="block text-md font-medium mb-2 text-gray-200">Odómetro</label>
+                                    <img id="preview-rental-odometro" src="https://placehold.co/400x300/374151/E5E7EB?text=Sin+Imagen" alt="Vista previa" class="w-full h-32 object-cover rounded-md mb-3 bg-slate-700">
+                                    <input type="file" id="file-rental-odometro" data-key="odometro" accept="image/*" capture="environment" class="hidden rental-photo-input-single">
+                                    <label for="file-rental-odometro" class="block w-full text-center bg-blue-600 text-white py-2 px-3 rounded-md font-semibold cursor-pointer text-sm transition-all hover:bg-blue-700">📸 Foto</label>
+                                </div>
+                                <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                                    <label class="block text-md font-medium mb-2 text-gray-200">Llave</label>
+                                    <img id="preview-rental-llave" src="https://placehold.co/400x300/374151/E5E7EB?text=Sin+Imagen" alt="Vista previa" class="w-full h-32 object-cover rounded-md mb-3 bg-slate-700">
+                                    <input type="file" id="file-rental-llave" data-key="llave" accept="image/*" capture="environment" class="hidden rental-photo-input-single">
+                                    <label for="file-rental-llave" class="block w-full text-center bg-blue-600 text-white py-2 px-3 rounded-md font-semibold cursor-pointer text-sm transition-all hover:bg-blue-700">📸 Foto</label>
+                                </div>
+                                <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                                    <label class="block text-md font-medium mb-2 text-gray-200">Zona de Carga</label>
+                                    <img id="preview-rental-carga" src="https://placehold.co/400x300/374151/E5E7EB?text=Sin+Imagen" alt="Vista previa" class="w-full h-32 object-cover rounded-md mb-3 bg-slate-700">
+                                    <input type="file" id="file-rental-carga" data-key="carga" accept="image/*" capture="environment" class="hidden rental-photo-input-single">
+                                    <label for="file-rental-carga" class="block w-full text-center bg-blue-600 text-white py-2 px-3 rounded-md font-semibold cursor-pointer text-sm transition-all hover:bg-blue-700">📸 Foto</label>
+                                </div>
+                                <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                                    <label class="block text-md font-medium mb-2 text-gray-200">Neumático FD</label>
+                                    <img id="preview-rental-fd" src="https://placehold.co/400x300/374151/E5E7EB?text=Sin+Imagen" alt="Vista previa" class="w-full h-32 object-cover rounded-md mb-3 bg-slate-700">
+                                    <input type="file" id="file-rental-fd" data-key="fd" accept="image/*" capture="environment" class="hidden rental-photo-input-single">
+                                    <label for="file-rental-fd" class="block w-full text-center bg-blue-600 text-white py-2 px-3 rounded-md font-semibold cursor-pointer text-sm transition-all hover:bg-blue-700">📸 Foto</label>
+                                </div>
+                                <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                                    <label class="block text-md font-medium mb-2 text-gray-200">Neumático FI</label>
+                                    <img id="preview-rental-fi" src="https://placehold.co/400x300/374151/E5E7EB?text=Sin+Imagen" alt="Vista previa" class="w-full h-32 object-cover rounded-md mb-3 bg-slate-700">
+                                    <input type="file" id="file-rental-fi" data-key="fi" accept="image/*" capture="environment" class="hidden rental-photo-input-single">
+                                    <label for="file-rental-fi" class="block w-full text-center bg-blue-600 text-white py-2 px-3 rounded-md font-semibold cursor-pointer text-sm transition-all hover:bg-blue-700">📸 Foto</label>
+                                </div>
+                                <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                                    <label class="block text-md font-medium mb-2 text-gray-200">Neumático TR</label>
+                                    <img id="preview-rental-tr" src="https://placehold.co/400x300/374151/E5E7EB?text=Sin+Imagen" alt="Vista previa" class="w-full h-32 object-cover rounded-md mb-3 bg-slate-700">
+                                    <input type="file" id="file-rental-tr" data-key="tr" accept="image/*" capture="environment" class="hidden rental-photo-input-single">
+                                    <label for="file-rental-tr" class="block w-full text-center bg-blue-600 text-white py-2 px-3 rounded-md font-semibold cursor-pointer text-sm transition-all hover:bg-blue-700">📸 Foto</label>
+                                </div>
+                                <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                                    <label class="block text-md font-medium mb-2 text-gray-200">Neumático TI</label>
+                                    <img id="preview-rental-ti" src="https://placehold.co/400x300/374151/E5E7EB?text=Sin+Imagen" alt="Vista previa" class="w-full h-32 object-cover rounded-md mb-3 bg-slate-700">
+                                    <input type="file" id="file-rental-ti" data-key="ti" accept="image/*" capture="environment" class="hidden rental-photo-input-single">
+                                    <label for="file-rental-ti" class="block w-full text-center bg-blue-600 text-white py-2 px-3 rounded-md font-semibold cursor-pointer text-sm transition-all hover:bg-blue-700">📸 Foto</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-lg font-semibold mb-3 text-blue-300"><span class="text-2xl align-middle">3.</span> Equipamiento</label>
+                            <div id="rental-equipamiento-container" class="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-3 bg-slate-800/50 p-5 rounded-xl border border-slate-700">
+                                <label for="rental-check-extintor" class="flex items-center space-x-2 cursor-pointer">
+                                    <input type="checkbox" id="rental-check-extintor" data-key="extintor" class="w-5 h-5 rounded text-blue-500 bg-slate-700 border-slate-600 focus:ring-blue-600">
+                                    <span class="text-gray-200">Extintor</span>
+                                </label>
+                                <label for="rental-check-martillo" class="flex items-center space-x-2 cursor-pointer">
+                                    <input type="checkbox" id="rental-check-martillo" data-key="martillo" class="w-5 h-5 rounded text-blue-500 bg-slate-700 border-slate-600 focus:ring-blue-600">
+                                    <span class="text-gray-200">Martillo</span>
+                                </label>
+                                <label for="rental-check-carro" class="flex items-center space-x-2 cursor-pointer">
+                                    <input type="checkbox" id="rental-check-carro" data-key="carro" class="w-5 h-5 rounded text-blue-500 bg-slate-700 border-slate-600 focus:ring-blue-600">
+                                    <span class="text-gray-200">Carro</span>
+                                </label>
+                                <label for="rental-check-botiquin" class="flex items-center space-x-2 cursor-pointer">
+                                    <input type="checkbox" id="rental-check-botiquin" data-key="botiquin" class="w-5 h-5 rounded text-blue-500 bg-slate-700 border-slate-600 focus:ring-blue-600">
+                                    <span class="text-gray-200">Botiquín</span>
+                                </label>
+                                <label for="rental-check-permiso" class="flex items-center space-x-2 cursor-pointer">
+                                    <input type="checkbox" id="rental-check-permiso" data-key="permiso" class="w-5 h-5 rounded text-blue-500 bg-slate-700 border-slate-600 focus:ring-blue-600">
+                                    <span class="text-gray-200">Permiso Circulación</span>
+                                </label>
+                                <label for="rental-check-ficha" class="flex items-center space-x-2 cursor-pointer">
+                                    <input type="checkbox" id="rental-check-ficha" data-key="ficha" class="w-5 h-5 rounded text-blue-500 bg-slate-700 border-slate-600 focus:ring-blue-600">
+                                    <span class="text-gray-200">Ficha Técnica</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-lg font-semibold mb-3 text-blue-300"><span class="text-2xl align-middle">4.</span> Fotografías de Daños (Opcional)</label>
+                            <div id="rental-damage-photos-container" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 mb-4">
+                                </div>
+                            <input type="file" id="file-rental-damage" accept="image/*" capture="environment" multiple class="hidden rental-photo-input-damage">
+                            <label for="file-rental-damage" class="block w-full text-center bg-amber-600 text-white py-2 px-4 rounded-md font-semibold cursor-pointer transition-all hover:bg-amber-700">📸 Añadir Foto de Daño</label>
+                        </div>
+                        
+                        <div>
+                            <label for="rental-descripcion-danos" class="block text-lg font-semibold mb-3 text-blue-300"><span class="text-2xl align-middle">5.</span> Descripción de Daños (Opcional)</label>
+                            <textarea id="rental-descripcion-danos" rows="3" class="w-full text-sm px-3 py-2 bg-slate-700/70 border border-slate-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Añadir descripción de los daños..."></textarea>
+</div>
+
+                        <div id="status-message-alquiler" class="hidden mt-6 p-4 rounded-lg text-center font-medium"></div>
+                        <div class="mt-10">
+                            <button type="submit" id="submit-button-alquiler" class="w-full text-lg font-bold py-4 px-6 rounded-lg bg-green-600 hover:bg-green-700 text-white shadow-xl transition duration-300 ease-in-out transform hover:scale-105">
+                                Guardar Registro
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <div id="alquiler-subpage-gallery" class="alquiler-subpage hidden">
+                    <div id="rental-history-list-page">
+                        <button class="btn-back-to-alquiler-choice text-blue-400 hover:text-blue-300 font-medium mb-4 transition-all">&larr; Volver al menú</button>
+                        <h2 class="text-2xl md:text-3xl font-semibold text-gray-200 mb-8 text-center">Historial de Registros de Alquiler</h2>
+                        
+                        <div class="mb-6">
+                            <label for="search-rental-history" class="block text-sm font-medium text-gray-300 mb-2">Buscar por Matrícula:</label>
+                            <input type="search" id="search-rental-history" placeholder="Escribe una matrícula..."
+                                   class="w-full text-lg px-4 py-3 bg-slate-800/70 border border-slate-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200">
+                        </div>
+                        
+                        <p id="rental-history-loading-message" class="text-center text-gray-400">Cargando historial de alquileres...</p>
+                        <div id="rental-history-list-container" class="space-y-4">
+                            </div>
+                        <div id="rental-history-no-results" class="hidden text-center text-gray-400 py-8">
+                            <p class="text-lg font-medium">No se encontraron historiales.</p>
+                        </div>
+                    </div>
+                    
+                    <div id="rental-history-detail-page" class="hidden">
+                        <button id="btn-back-to-rental-list" class="text-blue-400 hover:text-blue-300 font-medium mb-4 transition-all">&larr; Volver al listado</button>
+                        <h2 id="rental-history-detail-title" class="text-2xl md:text-3xl font-semibold text-gray-200 mb-8 text-center">Detalle de Registro...</h2>
+                        <div id="rental-history-detail-content" class="space-y-6">
+                            </div>
+                    </div>
+                </div>
+
+            </div>
+            
+            <div id="page-gestionar-flota" class="page-content hidden bg-slate-900/40 backdrop-blur-lg p-6 md:p-10 rounded-2xl shadow-2xl border border-slate-700">
+                <h2 class="text-2xl md:text-3xl font-semibold text-gray-200 mb-8 text-center">
+                    Gestionar Flota de Vehículos
+                </h2>
+                
+                <div class="mb-10">
+                    <h3 class="text-xl font-semibold text-blue-300 mb-4 border-b border-slate-700 pb-2">Añadir Nuevo Vehículo</h3>
+                    <form id="add-vehicle-form" class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="add-matricula" class="block text-sm font-medium text-gray-300 mb-1">Matrícula (Ej: 0000XXX) <span class="text-red-400">*</span></label>
+                                <input type="text" id="add-matricula" name="matricula" required maxlength="7" pattern="[0-9]{4}[A-Z]{3}"
+                                       class="w-full text-lg px-4 py-2 bg-slate-700/70 border border-slate-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                                       placeholder="0000XXX">
+                            </div>
+                            <div>
+                                <label for="add-marca" class="block text-sm font-medium text-gray-300 mb-1">Marca <span class="text-red-400">*</span></label>
+                                <input type="text" id="add-marca" name="marca" required
+                                       class="w-full text-lg px-4 py-2 bg-slate-700/70 border border-slate-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                       placeholder="Citroen">
+                            </div>
+                        </div>
+                        <div>
+                            <label for="add-vin" class="block text-sm font-medium text-gray-300 mb-1">VIN (Nº de Bastidor) <span class="text-red-400">*</span></label>
+                            <input type="text" id="add-vin" name="vin" required
+                                   class="w-full text-lg px-4 py-2 bg-slate-700/70 border border-slate-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                                   placeholder="VF7VBYHRMNZ041925">
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="add-poliza" class="block text-sm font-medium text-gray-300 mb-1">Nº Póliza (Opcional)</label>
+                                <input type="text" id="add-poliza" name="poliza"
+                                       class="w-full text-lg px-4 py-2 bg-slate-700/70 border border-slate-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                       placeholder="00827372...">
+                            </div>
+                            <div>
+                                <label for="add-renting" class="block text-sm font-medium text-gray-300 mb-1">Renting (Opcional)</label>
+                                <input type="text" id="add-renting" name="renting"
+                                       class="w-full text-lg px-4 py-2 bg-slate-700/70 border border-slate-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                       placeholder="Armada, Sixt, Europcar...">
+                            </div>
+                        </div>
+                        <div id="add-vehicle-status" class="hidden mt-2 p-3 rounded-lg text-center text-sm font-medium"></div>
+                        <button type="submit" id="add-vehicle-button" class="w-full text-md font-bold py-3 px-6 rounded-lg bg-green-600 hover:bg-green-700 text-white shadow-xl transition duration-300">
+                            Añadir Vehículo
+                        </button>
+                    </form>
+                </div>
+                
+                <div>
+                    <h3 class="text-xl font-semibold text-red-400 mb-4 border-b border-slate-700 pb-2">Quitar Vehículo (¡Acción permanente!)</h3>
+                    
+                    <div class="mb-6">
+                        <label for="search-manage-van" class="block text-sm font-medium text-gray-300 mb-2">Buscar por Matrícula:</label>
+                        <input type="search" id="search-manage-van" placeholder="Escribe una matrícula..."
+                               class="w-full text-lg px-4 py-3 bg-slate-800/70 border border-slate-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200">
+                    </div>
+
+                    <div id="manage-vehicle-list" class="space-y-3">
+                    </div>
+                    <div id="manage-no-results-message" class="hidden text-center text-gray-400 py-8">
+                        <p class="text-lg font-medium">No se encontraron furgonetas.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="page-operativa-vor" class="page-content bg-slate-900/40 backdrop-blur-lg p-6 md:p-10 rounded-2xl shadow-2xl border border-slate-700">
+                <h2 class="text-2xl md:text-3xl font-semibold text-gray-200 mb-6 text-center">
+                    Estado de la Flota (Operativa / VOR)
+                </h2>
+                
+                <div id="vor-counters" class="grid grid-cols-3 gap-4 mb-8 text-center">
+                    <div id="btn-filter-all" class="cursor-pointer p-2 rounded-lg hover:bg-slate-700/50 transition-all">
+                        <span id="count-total" class="block text-3xl font-bold text-white">0</span>
+                        <span class="text-sm text-gray-400">Total Flota</span>
+                    </div>
+                    <div id="btn-filter-op" class="cursor-pointer p-2 rounded-lg hover:bg-slate-700/50 transition-all">
+                        <span id="count-operativos" class="block text-3xl font-bold text-green-400">0</span>
+                        <span class="text-sm text-gray-400">Operativos</span>
+                    </div>
+                    <div id="btn-filter-vor" class="cursor-pointer p-2 rounded-lg hover:bg-slate-700/50 transition-all">
+                        <span id="count-vor" class="block text-3xl font-bold text-red-400">0</span>
+                        <span class="text-sm text-gray-400">VOR (Inoperativos)</span>
+                    </div>
+                </div>
+                <div class="mb-6">
+                    <label for="search-vor-van" class="block text-sm font-medium text-gray-300 mb-2">Buscar por Matrícula:</label>
+                    <input type="search" id="search-vor-van" placeholder="Escribe una matrícula..."
+                           class="w-full text-lg px-4 py-3 bg-slate-800/70 border border-slate-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200">
+                </div>
+                
+                <div id="vor-vehicle-list" class="space-y-3">
+                    </div>
+                <div id="vor-no-results-message" class="hidden text-center text-gray-400 py-8">
+                    <p class="text-lg font-medium">No se encontraron furgonetas con esa matrícula.</p>
+                </div>
+            </div>
+
+            <div id="page-accidentes" class="page-content hidden bg-slate-900/40 backdrop-blur-lg p-6 md:p-10 rounded-2xl shadow-2xl border border-slate-700">
+                
+                <div id="accidentes-choice-menu" class="accidentes-subpage">
+                    <h2 class="text-2xl md:text-3xl font-semibold text-gray-200 mb-8 text-center">Registro de Accidentes</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                        
+                        <button id="btn-show-accident-upload" class="flex flex-col items-center justify-center p-8 bg-red-600/70 rounded-2xl border border-red-500 hover:bg-red-600 transition-all cursor-pointer transform hover:scale-105 group">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-16 h-16 mb-3 text-red-200 group-hover:text-white transition-colors duration-300">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.374c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.01" />
+                            </svg>
+                            <span class="text-2xl font-bold text-white">Registrar Nuevo</span>
+                            <span class="text-sm text-red-200">Crear un nuevo reporte de accidente</span>
+                        </button>
+                        
+                        <button id="btn-show-accident-gallery" class="flex flex-col items-center justify-center p-8 bg-slate-800/70 rounded-2xl border border-slate-700 hover:bg-slate-700 transition-all cursor-pointer transform hover:scale-105 group">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-16 h-16 mb-3 text-gray-400 group-hover:text-white transition-colors duration-300">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18c-2.305 0-4.408.867-6 2.292m0-14.25v14.25" />
+                            </svg>
+                            <span class="text-2xl font-bold text-white">Ver Historial</span>
+                            <span class="text-sm text-gray-400">Ver reportes de accidentes</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="accidentes-subpage-upload" class="accidentes-subpage hidden">
+                    <button class="btn-back-to-accidentes-choice text-blue-400 hover:text-blue-300 font-medium mb-4 transition-all">&larr; Volver al menú</button>
+                    <h2 class="text-2xl md:text-3xl font-semibold text-gray-200 mb-8 text-center">Nuevo Reporte de Accidente</h2>
+                    
+                    <form id="accident-upload-form" class="space-y-8">
+                        
+                        <div>
+                            <label class="block text-lg font-semibold mb-3 text-blue-300"><span class="text-2xl align-middle">1.</span> Datos del Incidente</label>
+                            <div class="space-y-4">
+                                <div>
+                                    <label for="accident-matricula" class="block text-sm font-medium text-gray-300 mb-1">Matrícula (Vehículo Implicado)</label>
+                                    <input type="text" id="accident-matricula" name="matricula" required maxlength="7" pattern="[0-9]{4}[A-Z]{3}"
+                                           class="w-full text-lg px-4 py-2 bg-slate-700/70 border border-slate-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                                           placeholder="0000XXX">
+                                </div>
+                                <div>
+                                    <label for="accident-conductor" class="block text-sm font-medium text-gray-300 mb-1">Conductor (Nuestro)</label>
+                                    <input type="text" id="accident-conductor" name="conductor" required
+                                           class="w-full text-lg px-4 py-2 bg-slate-700/70 border border-slate-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                           placeholder="Nombre Apellido">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-lg font-semibold mb-3 text-blue-300"><span class="text-2xl align-middle">2.</span> Foto del Parte Amistoso</label>
+                            <div class="bg-slate-800/50 p-5 rounded-xl border border-slate-700 shadow-lg">
+                                <label class="block text-md font-medium mb-3 text-gray-200">Foto del Parte</label>
+                                <img id="preview-accident-parte" src="https://placehold.co/400x300/374151/E5E7EB?text=Sin+Imagen" alt="Vista previa" class="w-full h-48 object-cover rounded-md mb-4 bg-slate-700">
+                                <input type="file" id="file-accident-parte" accept="image/*" capture="environment" class="hidden accident-photo-input-single">
+                                <label for="file-accident-parte" class="block w-full text-center bg-blue-600 text-white py-2 px-4 rounded-md font-semibold cursor-pointer transition-all hover:bg-blue-700">📸 Hacer Foto del Parte</label>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label for="accident-descripcion" class="block text-lg font-semibold mb-3 text-blue-300"><span class="text-2xl align-middle">3.</span> Descripción del Incidente</label>
+                            <textarea id="accident-descripcion" rows="4" class="w-full text-sm px-3 py-2 bg-slate-700/70 border border-slate-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Descripción detallada de lo ocurrido, quién fue el culpable, daños, etc..."></textarea>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-lg font-semibold mb-3 text-blue-300"><span class="text-2xl align-middle">4.</span> Fotos Adicionales (Daños)</label>
+                            <div id="accident-damage-photos-container" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 mb-4">
+                                </div>
+                            <input type="file" id="file-accident-damage" accept="image/*" capture="environment" multiple class="hidden accident-photo-input-damage">
+                            <label for="file-accident-damage" class="block w-full text-center bg-amber-600 text-white py-2 px-4 rounded-md font-semibold cursor-pointer transition-all hover:bg-amber-700">📸 Añadir Foto de Daños</label>
+                        </div>
+
+                        <div id="status-message-accidentes" class="hidden mt-6 p-4 rounded-lg text-center font-medium"></div>
+                        <div class="mt-10">
+                            <button type="submit" id="submit-button-accidentes" class="w-full text-lg font-bold py-4 px-6 rounded-lg bg-green-600 hover:bg-green-700 text-white shadow-xl transition duration-300 ease-in-out transform hover:scale-105">
+                                Guardar Reporte de Accidente
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <div id="accidentes-subpage-gallery" class="accidentes-subpage hidden">
+                    <div id="accident-history-list-page">
+                        <button class="btn-back-to-accidentes-choice text-blue-400 hover:text-blue-300 font-medium mb-4 transition-all">&larr; Volver al menú</button>
+                        <h2 class="text-2xl md:text-3xl font-semibold text-gray-200 mb-8 text-center">Historial de Reportes de Accidentes</h2>
+                        
+                        <div class="mb-6">
+                            <label for="search-accident-history" class="block text-sm font-medium text-gray-300 mb-2">Buscar por Matrícula o Conductor:</label>
+                            <input type="search" id="search-accident-history" placeholder="Escribe matrícula o conductor..."
+                                   class="w-full text-lg px-4 py-3 bg-slate-800/70 border border-slate-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200">
+                        </div>
+                        
+                        <p id="accident-history-loading-message" class="text-center text-gray-400">Cargando historial de accidentes...</p>
+                        <div id="accident-history-list-container" class="space-y-4">
+                            </div>
+                        <div id="accident-history-no-results" class="hidden text-center text-gray-400 py-8">
+                            <p class="text-lg font-medium">No se encontraron reportes.</p>
+                        </div>
+                    </div>
+                    
+                    <div id="accident-history-detail-page" class="hidden">
+                        <button id="btn-back-to-accident-list" class="text-blue-400 hover:text-blue-300 font-medium mb-4 transition-all">&larr; Volver al listado</button>
+                        <h2 id="accident-history-detail-title" class="text-2xl md:text-3xl font-semibold text-gray-200 mb-8 text-center">Detalle del Reporte...</h2>
+                        <div id="accident-history-detail-content" class="space-y-6">
+                            </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="page-guantera" class="page-content hidden bg-slate-900/40 backdrop-blur-lg p-6 md:p-10 rounded-2xl shadow-2xl border border-slate-700">
+                
+                <div id="guantera-list-page" class="guantera-subpage">
+                    <h2 class="text-2xl md:text-3xl font-semibold text-gray-200 mb-8 text-center">
+                        Guantera Digital
+                    </h2>
+                    <div class="mb-6">
+                        <label for="search-guantera-van" class="block text-sm font-medium text-gray-300 mb-2">Buscar por Matrícula:</label>
+                        <input type="search" id="search-guantera-van" placeholder="Escribe una matrícula..."
+                               class="w-full text-lg px-4 py-3 bg-slate-800/70 border border-slate-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200">
+                    </div>
+                    <div id="guantera-van-list-container" class="space-y-3">
+                        </div>
+                    <div id="guantera-no-results" class="hidden text-center text-gray-400 py-8">
+                        <p class="text-lg font-medium">No se encontraron furgonetas.</p>
+                    </div>
+                </div>
+                
+                <div id="guantera-detail-page" class="guantera-subpage hidden">
+                    <button id="btn-back-to-guantera-list" class="text-blue-400 hover:text-blue-300 font-medium mb-4 transition-all">&larr; Volver al listado</button>
+                    <h2 id="guantera-detail-title" class="text-2xl md:text-3xl font-semibold text-gray-200 mb-8 text-center">Historial de...</h2>
+                    <div id="guantera-detail-loading" class="text-center text-gray-400">
+                        <p class="text-lg font-medium">Cargando historial unificado...</p>
+                    </div>
+                    <div id="guantera-detail-content" class="space-y-6">
+                        </div>
+                </div>
+            </div>
+
+
+        </main>
+    </div>
+
+    <div id="dates-modal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex justify-center items-center p-4">
+        <div class="bg-slate-800 w-full max-w-lg rounded-2xl border border-slate-700 shadow-2xl p-6 max-h-[90vh] flex flex-col">
+            <div class="flex-shrink-0 flex justify-between items-center mb-4">
+                <h2 id="dates-modal-title" class="text-xl font-bold text-white">Editar Fechas y Documentación</h2>
+                <button id="dates-modal-close-btn" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
+            </div>
+            
+            <div class="flex-grow overflow-y-auto pr-2 space-y-6">
+                
+                <div>
+                    <label class="block text-lg font-semibold mb-3 text-blue-300">1. Fechas</label>
+                    <div class="space-y-3">
+                        <div>
+                            <label for="dates-modal-itv" class="block text-sm font-medium text-gray-300 mb-1">Próxima ITV (DD/MM/AAAA):</label>
+                            <input type="text" id="dates-modal-itv" placeholder="DD/MM/AAAA"
+                                   class="w-full text-sm px-3 py-2 bg-slate-700/70 border border-slate-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="dates-modal-revision" class="block text-sm font-medium text-gray-300 mb-1">Próxima Revisión (DD/MM/AAAA):</label>
+                            <input type="text" id="dates-modal-revision" placeholder="DD/MM/AAAA"
+                                   class="w-full text-sm px-3 py-2 bg-slate-700/70 border border-slate-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-lg font-semibold mb-3 text-blue-300">2. Información</label>
+                    <div class="space-y-3">
+                        <div>
+                            <label for="dates-modal-poliza" class="block text-sm font-medium text-gray-300 mb-1">Nº Póliza:</label>
+                            <input type="text" id="dates-modal-poliza" placeholder="00827372..."
+                                   class="w-full text-sm px-3 py-2 bg-slate-700/70 border border-slate-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="dates-modal-renting" class="block text-sm font-medium text-gray-300 mb-1">Empresa de Renting:</label>
+                            <input type="text" id="dates-modal-renting" placeholder="Armada, Sixt, Europcar..."
+                                   class="w-full text-sm px-3 py-2 bg-slate-700/70 border border-slate-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-lg font-semibold mb-3 text-blue-300">3. Documentación</label>
+                    <div class="space-y-4">
+                        <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                            <label class="block text-md font-medium mb-2 text-gray-200">Permiso de Circulación</label>
+                            <img id="preview-dates-permiso" src="https://placehold.co/400x300/374151/E5E7EB?text=Sin+Imagen" alt="Vista previa" class="w-full h-32 object-cover rounded-md mb-3 bg-slate-700">
+                            <input type="file" id="file-dates-permiso" data-key="permiso" accept="image/*" capture="environment" class="hidden dates-photo-input">
+                            <label for="file-dates-permiso" class="block w-full text-center bg-blue-600 text-white py-2 px-3 rounded-md font-semibold cursor-pointer text-sm transition-all hover:bg-blue-700">📸 Subir/Actualizar Foto</label>
+                        </div>
+                        <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                            <label class="block text-md font-medium mb-2 text-gray-200">Ficha Técnica</label>
+                            <img id="preview-dates-ficha" src="https://placehold.co/400x300/374151/E5E7EB?text=Sin+Imagen" alt="Vista previa" class="w-full h-32 object-cover rounded-md mb-3 bg-slate-700">
+                            <input type="file" id="file-dates-ficha" data-key="ficha" accept="image/*" capture="environment" class="hidden dates-photo-input">
+                            <label for="file-dates-ficha" class="block w-full text-center bg-blue-600 text-white py-2 px-3 rounded-md font-semibold cursor-pointer text-sm transition-all hover:bg-blue-700">📸 Subir/Actualzar Foto</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex-shrink-0 pt-4">
+                <input type="hidden" id="dates-modal-matricula">
+                <button id="dates-modal-save-btn" class="w-full text-md font-bold py-3 px-6 rounded-lg bg-green-600 hover:bg-green-700 text-white shadow-xl transition duration-300">
+                    Guardar Cambios
+                </button>
+                <div id="dates-modal-status" class="hidden mt-2 p-3 rounded-lg text-center text-sm font-medium"></div>
+            </div>
+        </div>
+    </div>
+    <div id="edit-modal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex justify-center items-center p-4">
+        <div class="bg-slate-800 w-full max-w-lg rounded-2xl border border-slate-700 shadow-2xl p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-white">Editar Tarea Pendiente</h2>
+                <button id="edit-modal-close-btn" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label for="edit-modal-note" class="block text-sm font-medium text-gray-300 mb-1">Nota:</label>
+                    <textarea id="edit-modal-note" rows="3" class="w-full text-sm px-3 py-2 bg-slate-700/70 border border-slate-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+                <div>
+                    <label for="edit-modal-recambios" class="block text-sm font-medium text-gray-300 mb-1">Recambios:</label>
+                    <textarea id="edit-modal-recambios" rows="3" class="w-full text-sm px-3 py-2 bg-slate-700/70 border border-slate-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+                <input type="hidden" id="edit-modal-timestamp">
+                <button id="edit-modal-save-btn" class="w-full text-md font-bold py-3 px-6 rounded-lg bg-green-600 hover:bg-green-700 text-white shadow-xl transition duration-300">
+                    Guardar Cambios
+                </button>
+                <div id="edit-modal-status" class="hidden mt-2 p-3 rounded-lg text-center text-sm font-medium"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="qr-modal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex justify-center items-center p-4">
+        <div class="bg-slate-800 w-full max-w-sm rounded-2xl border border-slate-700 shadow-2xl p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-white">Compartir Furgoneta</h2>
+                <button id="modal-close-btn" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
+            </div>
+            <canvas id="modal-composite-canvas" width="300" height="400" class="bg-white rounded-lg w-full"></canvas>
+            
+            <button id="modal-share-btn" class="flex justify-center items-center gap-2 w-full mt-6 bg-green-500 hover:bg-green-600 text-white py-3 px-4 rounded-md font-semibold cursor-pointer transition-all">
+                Compartir
+            </button>
+
+        </div>
+    </div>
+
+    <button id="suggestion-fab" class="hidden fixed z-40 bottom-6 right-6 flex items-center justify-center px-5 py-3 bg-yellow-500 text-black rounded-full shadow-lg transform transition-transform hover:scale-105">
+        <span class="font-semibold text-sm">Sugerencias</span>
+    </button>
+
+    <button id="help-fab" class="hidden fixed z-40 bottom-6 left-6 flex items-center justify-center px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg transform transition-transform hover:scale-105">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 mr-2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+        </svg>
+        <span class="font-semibold text-sm">Ayuda</span>
+    </button>
+
+    <div id="suggestion-modal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex justify-center items-center p-4">
+        <div class="bg-slate-800 w-full max-w-2xl rounded-2xl border border-slate-700 shadow-2xl p-6 flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                <h2 class="text-xl font-bold text-yellow-400">Panel de Ideas y Sugerencias</h2>
+                <button id="suggestion-modal-close-btn" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
+            </div>
+            
+            <div class="flex-grow overflow-y-auto mb-4 pr-2">
+                <h3 class="text-lg font-semibold text-gray-200 mb-3">Ideas Recientes</h3>
+                <p id="suggestion-loading" class="text-center text-gray-400">Cargando ideas...</p>
+                <div id="suggestion-list-container" class="space-y-3">
+                    </div>
+            </div>
+            
+            <hr class="border-slate-600 my-4">
+
+            <form id="suggestion-form" class="space-y-4 flex-shrink-0">
+                <h3 class="text-lg font-semibold text-gray-200">Añadir Nueva Idea</h3>
+                <div>
+                    <label for="suggestion-modal-name" class="block text-sm font-medium text-gray-300 mb-1">Tu Nombre:</label>
+                    <input type="text" id="suggestion-modal-name" required
+                           class="w-full text-sm px-3 py-2 bg-slate-700/70 border border-slate-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                </div>
+                <div>
+                    <label for="suggestion-modal-idea" class="block text-sm font-medium text-gray-300 mb-1">Idea o Modificación:</label>
+                    <textarea id="suggestion-modal-idea" rows="3" required class="w-full text-sm px-3 py-2 bg-slate-700/70 border border-slate-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500" placeholder="Describe tu idea..."></textarea>
+                </div>
+                <button id="suggestion-modal-save-btn" type="submit" class="w-full text-md font-bold py-3 px-6 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-black shadow-xl transition duration-300">
+                    Enviar Sugerencia
+                </button>
+                <div id="suggestion-modal-status" class="hidden mt-2 p-3 rounded-lg text-center text-sm font-medium"></div>
+            </form>
+            
+            <div id="suggestion-visit-counter" class="text-center text-xs text-gray-500 mt-4 flex-shrink-0">
+                Cargando contador...
+            </div>
+        </div>
+    </div>
+    
+    <div id="help-modal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex justify-center items-center p-4">
+        <div class="bg-slate-800 w-full max-w-2xl rounded-2xl border border-slate-700 shadow-2xl p-6 flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                <h2 class="text-xl font-bold text-blue-400">Panel de Ayuda Rápida</h2>
+                <button id="help-modal-close-btn" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
+            </div>
+            
+            <div class="flex-grow overflow-y-auto mb-4 pr-2 space-y-4">
+                
+                <div>
+                    <strong class="text-lg text-yellow-400">Contactos de Emergencia</strong>
+                    <div class="mt-2 space-y-3 pl-2 border-l-2 border-yellow-600">
+                        <p class="text-sm text-gray-300"><strong class="text-white">Jefe de Flota:</strong><br>632 63 48 46</p>
+                        <p class="text-sm text-gray-300"><strong class="text-white">Ayvens (Renting "Armada"):</strong><br>
+                            <span class="block ml-2"><strong class="text-blue-300">Grúa:</strong> 915 94 93 89</span>
+                            <span class="block ml-2"><strong class="text-blue-300">Partes:</strong> 913 33 67 17</span>
+                        </p>
+                    </div>
+                </div>
+                <div>
+                    <strong class="text-lg text-white">General</strong>
+                    <div class="mt-2 space-y-3 pl-2 border-l-2 border-slate-600">
+                        <p class="text-sm text-gray-300"><strong class="text-blue-300">¿Cuál es la contraseña de administrador?</strong><br>Para acciones protegidas (borrar, editar fechas, quitar furgonetas) la contraseña es: <strong>Liebre</strong></p>
+                    </div>
+                </div>
+                
+                <div>
+                    <strong class="text-lg text-white">Gestión de Flota</strong>
+                    <div class="mt-2 space-y-3 pl-2 border-l-2 border-slate-600">
+                        <p class="text-sm text-gray-300"><strong class="text-blue-300">¿Cómo añado una furgoneta nueva?</strong><br>Ve a la pestaña <strong>Flota</strong> 🚚, rellena el formulario "Añadir Nuevo Vehículo" y pulsa "Añadir". (Póliza y Renting son opcionales).</p>
+                        <p class="text-sm text-gray-300"><strong class="text-blue-300">¿Cómo la quito del sistema?</strong><br>Ve a <strong>Flota</strong>, busca la matrícula en la lista de abajo y pulsa "Quitar". <strong>¡Cuidado!</strong> Esta acción es permanente y requiere la contraseña de admin.</p>
+                    </div>
+                </div>
+
+                <div>
+                    <strong class="text-lg text-white">Operativa y Documentos</strong>
+                    <div class="mt-2 space-y-3 pl-2 border-l-2 border-slate-600">
+                        <p class="text-sm text-gray-300"><strong class="text-blue-300">¿Cómo marco una furgoneta como "VOR"?</strong><br>En la página principal <strong>Operativas/VOR</strong> 📊, busca la furgoneta y pulsa el botón <strong>"Marcar VOR"</strong>.</p>
+                        <p class="text-sm text-gray-300"><strong class="text-blue-300">¿Cómo actualizo la fecha de ITV, Póliza o Renting?</strong><br>En <strong>Operativas/VOR</strong>, pulsa el botón <strong>"Editar Docs"</strong>. Podrás cambiar las fechas, Nº Póliza, Renting y subir nuevas fotos. Requiere contraseña de admin.</p>
+                        <p class="text-sm text-gray-300"><strong class="text-blue-300">¿Cómo veo la Póliza, Renting o Documentos?</strong><br>En <strong>Operativas/VOR</strong>, pulsa sobre la tarjeta de la furgoneta (en cualquier sitio menos los botones) para ir a su <strong>Guantera</strong>. Allí verás toda la información.</p>
+                    </div>
+                </div>
+
+                <div>
+                    <strong class="text-lg text-white">Taller y Tareas (Seleccion)</strong>
+                    <div class="mt-2 space-y-3 pl-2 border-l-2 border-slate-600">
+                        <p class="text-sm text-gray-300"><strong class="text-blue-300">¿Cómo creo una nueva tarea de reparación (Mecánico)?</strong><br>Ve a la pestaña <strong>Seleccion</strong> y pulsa en <strong>"Actualizar Estado de Vehículo"</strong>. Busca la matrícula, escribe la nota/recambios y pulsa "Guardar Tarea Pendiente".</p>
+                        <p class="text-sm text-gray-300"><strong class="text-blue-300">¿Cómo completo o borro una tarea pendiente?</strong><br>Ve a <strong>Seleccion</strong> y pulsa en <strong>"Ver Tareas / Historial"</strong>. Busca la matrícula, pulsa en ella y verás los botones de "Completar" o "Borrar" en cada tarea.</p>
+                    </div>
+                </div>
+                
+                <div>
+                    <strong class="text-lg text-white">Otras Secciones</strong>
+                    <div class="mt-2 space-y-3 pl-2 border-l-2 border-slate-600">
+                        <p class="text-sm text-gray-300"><strong class="text-blue-300">¿Cómo registro una furgoneta de alquiler?</strong><br>Ve a <strong>Alquiler</strong>. Pulsa <strong>"Registrar Entrega (Recibida)"</strong> cuando recibas una furgoneta. Pulsa <strong>"Registrar Devolución (Salida)"</strong> cuando la devuelvas.</p>
+                        <p class="text-sm text-gray-300"><strong class="text-blue-300">¿Cómo subo las fotos de los neumáticos?</strong><br>Ve a la pestaña <strong>Neumaticos</strong>, pulsa <strong>"Subir Estado"</strong>, selecciona la matrícula de la lista y saca las fotos.</p>
+                        <p class="text-sm text-gray-300"><strong class="text-blue-300">¿Cómo reporto un accidente?</strong><br>Ve a la pestaña <strong>Accidentes</strong> y pulsa <strong>"Registrar Nuevo"</strong>. Rellena los datos y sube la foto del parte.</p>
+                        <p class="text-sm text-gray-300"><strong class="text-blue-300">¿Cómo sugiero un cambio para esta app?</strong><br>Pulsa el botón amarillo <strong>"Sugerencias"</strong> en la esquina inferior derecha.</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+    
+    <!-- ★★★ NUEVO: Modal de Alerta Global ★★★ -->
+    <div id="global-alert-overlay" class="hidden fixed inset-0 z-[90] bg-black/70 backdrop-blur-md flex justify-center items-center p-4">
+        <div id="global-alert-modal" class="bg-slate-800 w-full max-w-md rounded-2xl border border-slate-700 shadow-2xl p-6">
+            <h2 id="global-alert-title" class="text-2xl font-bold text-white mb-4">Título del Modal</h2>
+            <p id="global-alert-message" class="text-gray-300 text-sm mb-6 whitespace-pre-line">Mensaje del modal...</p>
+            
+            <!-- Campo de Input (para contraseñas) -->
+            <div id="global-alert-input-container" class="hidden mb-6">
+                <label for="global-alert-input" class="block text-sm font-medium text-gray-300 mb-2">Contraseña:</label>
+                <input type="password" id="global-alert-input"
+                       class="w-full text-lg px-4 py-3 bg-slate-700/70 border border-slate-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <!-- Botones -->
+            <div id="global-alert-buttons" class="flex justify-end space-x-4">
+                <button id="global-alert-btn-cancel" class="px-5 py-2 rounded-lg font-semibold text-sm bg-gray-600 hover:bg-gray-700 text-white transition-all">
+                    Cancelar
+                </button>
+                <button id="global-alert-btn-confirm" class="px-5 py-2 rounded-lg font-semibold text-sm bg-blue-600 hover:bg-blue-700 text-white transition-all">
+                    Aceptar
+                </button>
+                <button id="global-alert-btn-ok" class="px-5 py-2 rounded-lg font-semibold text-sm bg-blue-600 hover:bg-blue-700 text-white transition-all">
+                    OK
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- ★★★ Fin Modal de Alerta Global ★★★ -->
+    
+    <div id="loading-overlay" class="hidden fixed inset-0 z-[100] bg-gray-900/90 backdrop-blur-md flex justify-center items-center">
+        <div class="text-center">
+            <svg class="animate-spin h-10 w-10 text-blue-400 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p id="loading-message" class="text-white text-lg font-medium mt-4">Cargando datos de vehículos...</p>
+        </div>
+    </div>
+
+    <script src="app.js" defer></script>
+</body>
+</html>

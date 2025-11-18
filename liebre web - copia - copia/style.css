@@ -1,0 +1,220 @@
+body {
+    font-family: 'Inter', sans-serif;
+    
+    /* Fondo de imagen que ya tenías */
+    background-image: url('background-van.jpg');
+    background-size: cover;
+    background-position: center center;
+    background-attachment: fixed; 
+    
+    background-color: #111827; 
+}
+
+/* Superposición oscura (MODIFICADA) */
+body::before {
+    content: "";
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: -1; 
+    /* ★★★ CAMBIO: Opacidad reducida de 0.75/0.85 a 0.5/0.6 para ver más el fondo ★★★ */
+    background: linear-gradient(135deg, rgba(30, 58, 138, 0.5), rgba(17, 24, 39, 0.6));
+}
+
+
+/* --- CÓDIGO ORIGINAL (INTACTO) --- */
+.page-content.hidden, .van-card.hidden, .qr-van-card.hidden, .vans-subpage.hidden, .neumaticos-subpage.hidden, .alquiler-subpage.hidden, .accidentes-subpage.hidden {
+    display: none;
+}
+/* ★★★ NUEVA CLASE PARA GUANTERA ★★★ */
+.guantera-subpage.hidden { 
+    display: none; 
+}
+
+
+.qr-van-card canvas { max-width: 100%; height: auto; }
+#modal-composite-canvas { max-width: 100%; height: auto; }
+
+.matricula-select-btn.active {
+    background-color: #2563eb; 
+    color: white;
+    border-color: #3b82f6; 
+}
+
+#van-history-detail-page.hidden { display: none; }
+#tire-history-detail-page.hidden { display: none; }
+#rental-history-detail-page.hidden { display: none; }
+#accident-history-detail-page.hidden { display: none; }
+
+#page-gestionar-flota.hidden { display: none; }
+#page-operativa-vor.hidden { display: none; }
+
+.vor-van-card.hidden { display: none; }
+.manage-van-card.hidden { display: none; }
+.van-history-summary-card.hidden { display: none; }
+.tire-history-summary-card.hidden { display: none; }
+.rental-history-summary-card.hidden { display: none; }
+.accident-history-summary-card.hidden { display: none; }
+
+
+/* --- ★★★ ESTILOS (Editar/Borrar) ★★★ --- */
+
+.history-entry-card {
+    transition: all 0.3s ease-out;
+}
+
+/* Botón genérico (Añadido .btn-history-complete) */
+.btn-history-edit,
+.btn-history-delete,
+.btn-history-complete {
+    font-size: 0.75rem; /* text-xs */
+    font-weight: 500; /* font-medium */
+    padding: 0.25rem 0.5rem; /* px-2 py-1 */
+    border-radius: 0.375rem; /* rounded-md */
+    transition: all 0.2s ease-in-out;
+    border-width: 1px;
+    white-space: nowrap; /* Evita que el texto se parta */
+}
+.btn-history-complete:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+
+/* Botón Editar (Azul) */
+.btn-history-edit {
+    color: #93c5fd; /* text-blue-300 */
+    background-color: rgba(59, 130, 246, 0.1); /* bg-blue-500/10 */
+    border-color: rgba(59, 130, 246, 0.3); /* border-blue-500/30 */
+}
+.btn-history-edit:hover {
+    background-color: rgba(59, 130, 246, 0.2); /* hover:bg-blue-500/20 */
+    color: #bfdbfe; /* hover:text-blue-200 */
+}
+
+/* Botón Borrar (Rojo) */
+.btn-history-delete {
+    color: #f87171; /* text-red-400 */
+    background-color: rgba(239, 68, 68, 0.1); /* bg-red-500/10 */
+    border-color: rgba(239, 68, 68, 0.3); /* border-red-500/30 */
+}
+.btn-history-delete:hover {
+    background-color: rgba(239, 68, 68, 0.2); /* hover:bg-red-500/20 */
+    color: #fca5a5; /* hover:text-red-300 */
+}
+.btn-history-delete:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Botón Completar (Verde) */
+.btn-history-complete {
+    color: #86efac; /* text-green-300 */
+    background-color: rgba(34, 197, 94, 0.1); /* bg-green-500/10 */
+    border-color: rgba(34, 197, 94, 0.3); /* border-green-500/30 */
+}
+.btn-history-complete:hover {
+    background-color: rgba(34, 197, 94, 0.2); /* hover:bg-green-500/20 */
+    color: #bbf7d0; /* hover:text-green-200 */
+}
+
+
+/* --- ★★★ ESTILOS PARA VOR HIGHLIGHT ★★★ --- */
+
+/* Rojo (VOR o Caducado) */
+.vor-highlight {
+    background-color: rgba(239, 68, 68, 0.1) !important;
+    border-color: rgba(239, 68, 68, 0.4) !important;
+}
+.vor-highlight:hover {
+    background-color: rgba(239, 68, 68, 0.15) !important;
+    border-color: rgba(239, 68, 68, 0.6) !important;
+}
+
+/* Amarillo (Aviso de caducidad) */
+.vor-alert {
+    background-color: rgba(245, 158, 11, 0.1) !important; /* bg-amber-500/10 */
+    border-color: rgba(245, 158, 11, 0.4) !important; /* border-amber-500/40 */
+}
+.vor-alert:hover {
+    background-color: rgba(245, 158, 11, 0.15) !important;
+    border-color: rgba(245, 158, 11, 0.6) !important;
+}
+
+/* --- ★★★ Botón flotante Sugerencias ★★★ --- */
+#suggestion-fab.hidden {
+    display: none;
+}
+
+/* --- ★★★ NUEVO Botón flotante Ayuda ★★★ --- */
+#help-fab.hidden {
+    display: none;
+}
+
+/* --- ★★★ NUEVO: Clases para tarjetas clicables ★★★ --- */
+.vor-van-card.clickable-card {
+    cursor: pointer;
+}
+/* Estilo para que los botones dentro de la tarjeta clicable sigan funcionando */
+.vor-van-card.clickable-card .vor-toggle-btn,
+.vor-van-card.clickable-card .edit-dates-btn,
+.vor-van-card.clickable-card a {
+    position: relative;
+    z-index: 2; /* Pone los botones por encima del listener de la tarjeta */
+}
+
+.guantera-clickable-card {
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+.guantera-clickable-card:hover {
+    border-color: #3b82f6; /* hover:border-blue-500 */
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+
+/* --- ★★★ ESTILOS PARA SCROLLBAR (MODAL y PÁGINA) ★★★ --- */
+/* Para navegadores Webkit (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: #1f2937; /* bg-gray-800 */
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb {
+    background-color: #4b5563; /* bg-gray-600 */
+    border-radius: 10px;
+    border: 2px solid #1f2937; /* bg-gray-800 */
+}
+::-webkit-scrollbar-thumb:hover {
+    background-color: #6b7280; /* bg-gray-500 */
+}
+
+/* --- ★★★ NUEVO: Estilos para Modal Global ★★★ --- */
+#global-alert-overlay.hidden {
+    display: none;
+}
+
+#global-alert-modal {
+    /* Animación de entrada */
+    transform: scale(0.95);
+    opacity: 0;
+    transition: all 0.2s ease-out;
+}
+
+#global-alert-overlay:not(.hidden) #global-alert-modal {
+    transform: scale(1);
+    opacity: 1;
+}
+
+/* Botón rojo destructivo */
+#global-alert-btn-confirm.btn-destructive {
+    background-color: #dc2626; /* bg-red-600 */
+    color: white;
+}
+#global-alert-btn-confirm.btn-destructive:hover {
+    background-color: #b91c1c; /* hover:bg-red-700 */
+}
