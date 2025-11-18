@@ -2,7 +2,7 @@
 // Reescrito modularmente. Une partes 1..N para crear app.js completo.
 
 /* ---------- CONFIG ---------- */
-const GAPS_URL = 'https://script.google.com/macros/s/AKfycbwEyozAk98y_r4Y3MZDYk5f6S-IguJSzMsUC2B069WTgJZKKg7AmJeTVob7c0NDKIZrtg/exec'; // Cambia por tu endpoint
+const GAPS_URL = 'https://script.google.com/macros/s/AKfycbwRLQVPVPbG6sDNGeXpTD0uh2RAyWBzKYnT-HHfUPsh7FgKyMvWDwwYOwYm70CXxEsY/exec'; // Cambia por tu endpoint
 
 /* ---------- ESTADO GLOBAL ---------- */
 let authToken = null;
@@ -632,4 +632,5 @@ window.__APP_DEBUG__ = {
 };
 
 /* ---------- FIN PARTE 3 ---------- */
+
 
