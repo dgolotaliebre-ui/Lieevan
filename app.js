@@ -1,636 +1,536 @@
-// app.js - parte 1/3
-// Reescrito modularmente. Une partes 1..N para crear app.js completo.
+/* ---------------------------------------------------
+   LIEBREEXPRESS – APP.JS
+   Versión limpia, corregida y compatible con GitHub Pages
+---------------------------------------------------- */
 
-/* ---------- CONFIG ---------- */
-const GAPS_URL = 'https://script.google.com/macros/s/AKfycbwRLQVPVPbG6sDNGeXpTD0uh2RAyWBzKYnT-HHfUPsh7FgKyMvWDwwYOwYm70CXxEsY/exec'; // Cambia por tu endpoint
+/* -----------------------------
+   CONFIG GLOBAL + API ENDPOINT
+------------------------------*/
 
-/* ---------- ESTADO GLOBAL ---------- */
-let authToken = null;
-let vehicles = [];               // [{matricula, marca, vin, ...}]
-let vanHistoryDataStore = {};    // { matricula: [entries] }
-let stockDataStore = [];         // [{nombre, cantidad}]
-let pendingStockDeductions = {}; // { matricula: [nombreItem,...] }
+const API_URL =
+  "https://script.google.com/macros/s/AKfycbwRLQVPVPbG6sDNGeXpTD0uh2RAyWBzKYnT-HHfUPsh7FgKyMvWDwwYOwYm70CXxEsY/exec";
 
-const placeholderImg = 'https://placehold.co/400x300/374151/E5E7EB?text=Sin+Imagen';
+let AUTH_TOKEN = null;
 
-/* ---------- SELECTORES ---------- */
-const loginModal = document.getElementById('login-modal');
-const loginForm = document.getElementById('login-form');
-const passwordInput = document.getElementById('password-input');
-const loginButton = document.getElementById('login-button');
-const loginStatus = document.getElementById('login-status');
+/* -----------------------------
+   HELPERS BÁSICOS
+------------------------------*/
+const qs = (sel) => document.querySelector(sel);
+const qsa = (sel) => Array.from(document.querySelectorAll(sel));
 
-const appContainer = document.getElementById('app-container');
-const pageContents = document.querySelectorAll('.page-content');
-const navLinks = document.querySelectorAll('.nav-link');
+/* -----------------------------
+   FETCH UNIVERSAL A TU BACKEND
+------------------------------*/
+async function apiRequest(action, payload = {}) {
+  const body = {
+    action,
+    ...payload,
+    authToken: AUTH_TOKEN,
+  };
 
-const vanListContainer = document.getElementById('van-list-container');
-const searchInput = document.getElementById('search-van');
+  try {
+    const response = await fetch(API_URL, {
+      method: "POST",
+      mode: "cors",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
 
-const vorVehicleList = document.getElementById('vor-vehicle-list');
+    return await response.json();
+  } catch (err) {
+    console.error("❌ Error en fetch:", err);
+    showGlobalAlert("Error de conexión con el servidor.");
+    return { status: "error" };
+  }
+}
 
-const guanteraListContainer = document.getElementById('guantera-van-list-container');
-const guanteraDetailPage = document.getElementById('guantera-detail-page');
-const guanteraDetailTitle = document.getElementById('guantera-detail-title');
-const guanteraDetailContent = document.getElementById('guantera-detail-content');
-const guanteraListPage = document.getElementById('guantera-list-page');
-const btnBackToGuanteraList = document.getElementById('btn-back-to-guantera-list');
+/* -----------------------------
+   GLOBAL ALERT (MODAL)
+------------------------------*/
+function showGlobalAlert(message, destructive = false) {
+  const overlay = qs("#global-alert-overlay");
+  const msg = qs("#global-alert-message");
+  const btn = qs("#global-alert-btn-confirm");
 
-const stockListContainer = document.getElementById('stock-list-container');
-const stockForm = document.getElementById('stock-form');
-const stockNameInput = document.getElementById('stock-name');
-const stockQuantityInput = document.getElementById('stock-quantity');
-const stockSaveBtn = document.getElementById('stock-save-btn');
-const searchStockInput = document.getElementById('search-stock');
+  msg.textContent = message;
+  btn.classList.toggle("btn-destructive", destructive);
+  overlay.classList.remove("hidden");
 
-const vansChoiceMenu = document.getElementById('vans-choice-menu');
-const btnShowVanUpload = document.getElementById('btn-show-van-upload');
-const btnShowVanGallery = document.getElementById('btn-show-van-gallery');
-const btnShowStock = document.getElementById('btn-show-stock');
+  return new Promise((resolve) => {
+    btn.onclick = () => {
+      overlay.classList.add("hidden");
+      resolve(true);
+    };
+  });
+}
 
-const vansSubpageUpload = document.getElementById('vans-subpage-upload');
-const vansSubpageGallery = document.getElementById('vans-subpage-gallery');
-const vansSubpageStock = document.getElementById('vans-subpage-stock');
+/* -----------------------------
+   LOGIN + AUTOLOGIN
+------------------------------*/
 
-const vanHistoryListContainer = document.getElementById('van-history-list-container');
+async function tryLogin(password) {
+  const res = await apiRequest("login", { password });
 
-/* ---------- UTILIDADES ---------- */
-function capitalize(s) { if (!s) return ''; return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase(); }
+  if (res.status === "success") {
+    AUTH_TOKEN = res.authToken;
+    localStorage.setItem("authToken", AUTH_TOKEN);
 
+    goToPage("main-menu");
+    loadAllInitialData();
+  } else {
+    showGlobalAlert("Contraseña incorrecta.");
+  }
+}
+
+// botón "Entrar"
+document.addEventListener("DOMContentLoaded", () => {
+  const loginBtn =
+    qs("#login-btn") ||
+    qs("#login-button") ||
+    qs("#login-form button") ||
+    null;
+
+  const passwordInput =
+    qs("#login-password") ||
+    qs("#password-input") ||
+    qs("input[name='password']");
+
+  if (loginBtn && passwordInput) {
+    loginBtn.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      const pass = passwordInput.value.trim();
+      if (!pass) return showGlobalAlert("Introduce una contraseña.");
+      tryLogin(pass);
+    });
+  }
+});
+
+// AUTOLOGIN al entrar
+window.addEventListener("load", async () => {
+  const saved = localStorage.getItem("authToken");
+  if (!saved) return;
+
+  AUTH_TOKEN = saved;
+  const res = await apiRequest("getVisitCount");
+
+  if (res.status === "success") {
+    goToPage("main-menu");
+    loadAllInitialData();
+  }
+});
+
+/* -----------------------------
+   NAVEGACIÓN ENTRE PÁGINAS
+------------------------------*/
+function goToPage(pageId) {
+  qsa(".page-content").forEach((p) => p.classList.add("hidden"));
+
+  const page = qs(`#page-${pageId}`);
+  if (page) page.classList.remove("hidden");
+}
+
+/* Botones del menú principal */
+document.addEventListener("DOMContentLoaded", () => {
+  const links = {
+    "#btn-operativas": "operativas",
+    "#btn-vor": "operativa-vor",
+    "#btn-stock": "stock",
+    "#btn-gestion-flota": "gestionar-flota",
+    "#btn-historial": "historial",
+    "#btn-sugerencias": "sugerencias",
+  };
+
+  for (const sel in links) {
+    const el = qs(sel);
+    if (el) el.onclick = () => goToPage(links[sel]);
+  }
+});
+
+/* -----------------------------
+   CARGA INICIAL COMPLETA
+------------------------------*/
+async function loadAllInitialData() {
+  await loadFleet();
+  await loadNotesHistory();
+  await loadTireHistory();
+  await loadRentalHistory();
+  await loadAccidentHistory();
+  await loadStock();
+}
+
+/* ---------------------------------------------------
+   FIN DE LA PARTE 1
+---------------------------------------------------- */
+/* ---------------------------------------------------
+   PARTE 2 — CARGA DE DATOS, RENDERIZADO Y GUANTERA
+---------------------------------------------------- */
+
+/* Estado local */
+let VEHICLES = [];
+let VAN_NOTES = {};       
+let STOCK = [];           
+let PENDING_ITEMS = {};   
+
+/* Helpers extra */
+function up(s) { return s ? s.toString().toUpperCase() : ""; }
 function formatPlate(raw) {
-  if (!raw) return '---';
-  const s = raw.replace(/\s+/g, '');
-  if (s.length === 7) return s.slice(0,4) + ' ' + s.slice(4);
-  return raw;
+  if (!raw) return "—";
+  const t = raw.replace(/\s+/g, "");
+  return t.length === 7 ? t.slice(0, 4) + " " + t.slice(4) : raw;
 }
 
-function savePendingDeductionsToStorage() {
-  try { localStorage.setItem('pendingStockDeductions', JSON.stringify(pendingStockDeductions || {})); } catch(e){}
-}
+/* ---------------------------------------------------
+   CARGA DE FLOTAS
+---------------------------------------------------- */
+async function loadFleet() {
+  const res = await apiRequest("getVehicles");
 
-function loadPendingDeductionsFromStorage() {
-  try {
-    const raw = localStorage.getItem('pendingStockDeductions');
-    pendingStockDeductions = raw ? JSON.parse(raw) : {};
-  } catch (e) { pendingStockDeductions = {}; }
-}
-
-function showLoginStatus(message, type = 'info') {
-  if (!loginStatus) return;
-  loginStatus.classList.remove('hidden', 'bg-green-600', 'bg-red-600', 'bg-blue-600');
-  loginStatus.textContent = message;
-  if (type === 'success') loginStatus.classList.add('bg-green-600');
-  else if (type === 'error') loginStatus.classList.add('bg-red-600');
-  else if (type === 'loading') loginStatus.classList.add('bg-blue-600');
-}
-
-/* ---------- FETCH SEGURO (INCLUYE TOKEN) ---------- */
-async function fetchSeguro(payload) {
-  if (!authToken && payload.action !== 'login') {
-    throw new Error('No autorizado. Inicia sesión.');
-  }
-  const full = { ...payload, authToken };
-  const res = await fetch(GAPS_URL, {
-    method: 'POST', mode: 'cors', redirect: 'follow',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(full)
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const json = await res.json();
-  if (json.status !== 'success') throw new Error(json.message || 'Error servidor');
-  return json;
-}
-
-/* ---------- CARGAS INICIALES ---------- */
-async function loadVehicles() {
-  const res = await fetchSeguro({ action: 'getVehicles' });
-  vehicles = res.data || [];
-  // inicializar arrays de deducciones
-  vehicles.forEach(v => {
-    if (!pendingStockDeductions[v.matricula]) pendingStockDeductions[v.matricula] = [];
-  });
-  savePendingDeductionsToStorage();
-}
-
-async function loadStock(silent = false) {
-  try {
-    const res = await fetchSeguro({ action: 'getStock' });
-    stockDataStore = res.data || [];
-    renderStockList(stockDataStore);
-  } catch (e) {
-    console.error('Error carga stock', e);
-    if (!silent && stockListContainer) stockListContainer.innerHTML = `<div class="text-red-400">Error al cargar stock: ${e.message}</div>`;
+  if (res.status === "success" && Array.isArray(res.data)) {
+    VEHICLES = res.data;
+    renderOperativas();
+    renderVOR();
+    renderVehicleSelection();
+    renderGuanteraList();
   }
 }
 
-/* ---------- RENDER: VOR / GUANTERA ---------- */
-function renderVorList() {
-  if (!vorVehicleList) return;
-  vorVehicleList.innerHTML = '';
-  vehicles.forEach(v => {
-    const el = document.createElement('div');
-    el.className = 'van-card clickable';
-    el.dataset.matricula = v.matricula;
-    el.innerHTML = `\n      <div>\n        <div class="font-bold text-lg">${formatPlate(v.matricula)}</div>\n        <div class="text-sm text-muted">${capitalize(v.marca)}</div>\n      </div>\n      <div class="mt-3">\n        <div class="text-sm text-muted">ITV: ${v.itv || '---'}</div>\n      </div>\n    `;
-    el.addEventListener('click', () => {
-      navigateToPage('page-guantera');
-      showGuanteraDetail(v.matricula);
+/* ---------------------------------------------------
+   CARGA DE NOTAS
+---------------------------------------------------- */
+async function loadNotesHistory() {
+  const res = await apiRequest("getVanNotesHistory");
+  if (res.status !== "success" || !Array.isArray(res.data)) return;
+
+  VAN_NOTES = {};
+
+  res.data.forEach((entry) => {
+    const mat = up(entry.matricula || "UNKNOWN");
+    if (!VAN_NOTES[mat]) VAN_NOTES[mat] = [];
+    VAN_NOTES[mat].push(entry);
+  });
+
+  renderHistorialResumen();
+}
+
+/* ---------------------------------------------------
+   CARGA DE STOCK
+---------------------------------------------------- */
+async function loadStock() {
+  const res = await apiRequest("getStock");
+  if (res.status === "success" && Array.isArray(res.data)) {
+    STOCK = res.data;
+    renderStock();
+  }
+}
+
+/* ---------------------------------------------------
+   OPERATIVAS — LISTA PRINCIPAL
+---------------------------------------------------- */
+function renderOperativas() {
+  const container = qs("#operativas-list");
+  if (!container) return;
+  container.innerHTML = "";
+
+  VEHICLES.forEach((v) => {
+    const div = document.createElement("div");
+    div.className = "van-card van-card-operativa clickable-card";
+    div.dataset.matricula = v.matricula;
+
+    div.innerHTML = `
+      <div class="font-bold">${formatPlate(v.matricula)}</div>
+      <div class="text-sm text-muted">${v.marca || ""}</div>
+      <div class="text-xs mt-1">VIN: ${v.vin || "—"}</div>
+    `;
+
+    div.onclick = () => {
+      goToPage("guantera");
+      openGuantera(v.matricula);
+    };
+
+    container.appendChild(div);
+  });
+}
+
+/* ---------------------------------------------------
+   VOR — LISTA
+---------------------------------------------------- */
+function renderVOR() {
+  const container = qs("#vor-vehicle-list");
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  VEHICLES.filter((v) => up(v.estado) === "VOR").forEach((v) => {
+    const div = document.createElement("div");
+    div.className = "van-card vor-van-card clickable-card vor-highlight";
+    div.dataset.matricula = v.matricula;
+
+    div.innerHTML = `
+      <div class="font-bold">${formatPlate(v.matricula)}</div>
+      <div class="text-sm text-muted">${v.marca || ""}</div>
+      <div class="text-xs mt-1">VIN: ${v.vin || "—"}</div>
+    `;
+
+    div.onclick = () => {
+      goToPage("guantera");
+      openGuantera(v.matricula);
+    };
+
+    container.appendChild(div);
+  });
+}
+
+/* ---------------------------------------------------
+   SELECCIÓN DE VEHÍCULO (CREAR TAREAS)
+---------------------------------------------------- */
+function renderVehicleSelection() {
+  const container = qs("#van-list-container");
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  VEHICLES.forEach((v) => {
+    const m = v.matricula;
+
+    const card = document.createElement("div");
+    card.className = "van-card van-selection-card";
+    card.dataset.matricula = m;
+
+    card.innerHTML = `
+      <div class="font-bold">${formatPlate(m)}</div>
+      <div class="text-sm text-muted mb-2">${v.marca || ""}</div>
+
+      <label class="text-sm">Nota:</label>
+      <textarea class="w-full p-2 rounded bg-slate-800/70" id="note-${m}" rows="2"></textarea>
+
+      <label class="text-sm mt-2 block">Recambios (ENTER para añadir):</label>
+      <input class="w-full recambios-input p-2 rounded bg-slate-800/70"
+             data-matricula="${m}" id="recambios-${m}" placeholder="Escribe recambio...">
+
+      <div class="flex gap-2 mt-2" id="tags-${m}"></div>
+
+      <div class="flex gap-2 mt-3">
+        <button class="btn save-note" data-m="${m}">Guardar</button>
+        <button class="btn open-guantera" data-m="${m}">Guantera</button>
+      </div>
+    `;
+
+    // restaurar items pendientes
+    if (!PENDING_ITEMS[m]) PENDING_ITEMS[m] = [];
+    refreshTags(m);
+
+    container.appendChild(card);
+  });
+
+  // Guardar tarea
+  qsa(".save-note").forEach((btn) => {
+    btn.onclick = async () => {
+      const m = btn.dataset.m;
+      await saveNote(m);
+    };
+  });
+
+  // Entrar a guantera
+  qsa(".open-guantera").forEach((btn) => {
+    btn.onclick = () => {
+      const m = btn.dataset.m;
+      goToPage("guantera");
+      openGuantera(m);
+    };
+  });
+
+  // Autocompletar recambios con ENTER
+  qsa(".recambios-input").forEach((input) => {
+    input.addEventListener("keydown", (ev) => {
+      if (ev.key !== "Enter") return;
+      ev.preventDefault();
+
+      const m = input.dataset.matricula;
+      const val = input.value.trim().toLowerCase();
+
+      const match = STOCK.find((s) => s.nombre.toLowerCase() === val);
+
+      if (!match) return showGlobalAlert("Recambio no encontrado.");
+      if (parseInt(match.cantidad) <= 0)
+        return showGlobalAlert("Sin stock disponible.");
+
+      PENDING_ITEMS[m].push(match.nombre);
+      input.value = "";
+      refreshTags(m);
+      savePending();
     });
-    vorVehicleList.appendChild(el);
   });
 }
 
+/* ---------------------------------------------------
+   TAGS DE RECAMBIOS A DESCONTAR
+---------------------------------------------------- */
+function refreshTags(m) {
+  const container = qs(`#tags-${m}`);
+  if (!container) return;
+  container.innerHTML = "";
+
+  (PENDING_ITEMS[m] || []).forEach((name, index) => {
+    const tag = document.createElement("span");
+    tag.className = "badge-warning";
+    tag.innerHTML = `${name} (-1) <button class="remove-tag" data-m="${m}" data-i="${index}">×</button>`;
+    container.appendChild(tag);
+  });
+
+  qsa(`#tags-${m} .remove-tag`).forEach((btn) => {
+    btn.onclick = () => {
+      const mat = btn.dataset.m;
+      const idx = btn.dataset.i;
+      PENDING_ITEMS[mat].splice(idx, 1);
+      savePending();
+      refreshTags(mat);
+    };
+  });
+}
+
+function savePending() {
+  localStorage.setItem("pendingItems", JSON.stringify(PENDING_ITEMS));
+}
+
+function loadPending() {
+  try {
+    PENDING_ITEMS = JSON.parse(localStorage.getItem("pendingItems")) || {};
+  } catch {
+    PENDING_ITEMS = {};
+  }
+}
+loadPending();
+
+/* ---------------------------------------------------
+   GUARDAR NOTA
+---------------------------------------------------- */
+async function saveNote(matricula) {
+  const note = qs(`#note-${matricula}`).value.trim();
+  const recambios = qs(`#recambios-${matricula}`).value.trim();
+  const usedStock = PENDING_ITEMS[matricula] || [];
+
+  if (!note) return showGlobalAlert("La nota es obligatoria.");
+
+  const res = await apiRequest("saveVanNote", {
+    matricula,
+    note,
+    recambios,
+    usedStockItems: usedStock,
+  });
+
+  if (res.status === "success") {
+    showGlobalAlert("Tarea guardada.");
+    PENDING_ITEMS[matricula] = [];
+    savePending();
+    refreshTags(matricula);
+    await loadNotesHistory();
+  }
+}
+
+/* ---------------------------------------------------
+   GUANTERA → HISTORIAL del vehículo
+---------------------------------------------------- */
 function renderGuanteraList() {
-  if (!guanteraListContainer) return;
-  guanteraListContainer.innerHTML = '';
-  vehicles.forEach(v => {
-    const card = document.createElement('div');
-    card.className = 'guantera-card clickable';
+  const container = qs("#guantera-van-list-container");
+  if (!container) return;
+  container.innerHTML = "";
+
+  VEHICLES.forEach((v) => {
+    const card = document.createElement("div");
+    card.className = "guantera-card guantera-clickable-card";
     card.dataset.matricula = v.matricula;
-    card.innerHTML = `\n      <div class="font-semibold">${formatPlate(v.matricula)}</div>\n      <div class="text-sm text-muted">${capitalize(v.marca)}</div>\n      <div class="mt-2 text-sm">Vin: ${v.vin || '---'}</div>\n    `;
-    card.addEventListener('click', () => { navigateToPage('page-guantera'); showGuanteraDetail(v.matricula); });
-    guanteraListContainer.appendChild(card);
+
+    card.innerHTML = `
+      <div class="font-semibold">${formatPlate(v.matricula)}</div>
+      <div class="text-sm text-muted">${v.marca}</div>
+    `;
+
+    card.onclick = () => {
+      goToPage("guantera");
+      openGuantera(v.matricula);
+    };
+
+    container.appendChild(card);
   });
 }
 
-/* ---------- mostrar detalle guantera ---------- */
-function showGuanteraDetail(matricula) {
-  if (!guanteraDetailContent || !guanteraDetailTitle) return;
-  guanteraListPage && guanteraListPage.classList.add('hidden');
-  guanteraDetailPage && guanteraDetailPage.classList.remove('hidden');
-  btnBackToGuanteraList && btnBackToGuanteraList.classList.remove('hidden');
+function openGuantera(matricula) {
+  qs("#guantera-detail-title").textContent =
+    "Guantera - " + formatPlate(matricula);
 
-  const van = vehicles.find(x => x.matricula === matricula) || {};
-  guanteraDetailTitle.textContent = `Guantera - ${formatPlate(matricula)}`;
+  const detail = qs("#guantera-detail-content");
+  detail.innerHTML = "";
 
-  const infoHTML = `\n    <div class="van-card">\n      <div class="grid grid-cols-2 gap-4">\n        <div>\n          <div class="text-sm text-muted">Marca</div>\n          <div class="font-medium">${capitalize(van.marca) || '---'}</div>\n        </div>\n        <div>\n          <div class="text-sm text-muted">Renting</div>\n          <div class="font-medium">${capitalize(van.renting) || '---'}</div>\n        </div>\n        <div>\n          <div class="text-sm text-muted">Nº Póliza</div>\n          <div class="font-medium">${van.poliza || '---'}</div>\n        </div>\n        <div>\n          <div class="text-sm text-muted">VIN</div>\n          <div class="font-medium">${van.vin || '---'}</div>\n        </div>\n      </div>\n    </div>\n  `;
+  const list = VAN_NOTES[up(matricula)] || [];
 
-  const tareas = (vanHistoryDataStore[matricula] || []).slice(0,20);
-  let tareasHTML = `<div class="van-card"><h4 class="font-semibold mb-2">Historial de Tareas</h4>`;
-  if (!tareas.length) tareasHTML += `<div class="text-muted">No hay tareas registradas.</div>`;
-  else {
-    tareas.forEach(t => {
-      tareasHTML += `<div class="history-entry-card mb-2 p-2 border rounded">\n        <div class="flex justify-between">\n          <div><strong>${t.timestamp}</strong> <span class="text-sm text-muted"> ${t.nota ? '- ' + t.nota : ''}</span></div>\n          <div class="flex gap-2">\n            ${t.estado && t.estado.toLowerCase() === 'completado' ? '<span class="badge-ok">Completado</span>' : `<button data-timestamp="${t.timestamp}" class="complete-btn px-2 py-1 rounded bg-green-600 text-white">Completar</button>`}\n            <button data-timestamp="${t.timestamp}" class="delete-btn px-2 py-1 rounded bg-red-600 text-white">Borrar</button>\n          </div>\n        </div>\n      </div>`;
-    });
-  }
-  tareasHTML += `</div>`;
-
-  guanteraDetailContent.innerHTML = infoHTML + tareasHTML;
-
-  // añadir listeners a botones dentro del detalle
-  guanteraDetailContent.querySelectorAll('.complete-btn').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      const timestamp = e.currentTarget.dataset.timestamp;
-      await handleCompleteHistoryEntry(timestamp);
-      await loadVanHistory();
-      showGuanteraDetail(matricula);
-      await loadStock(true);
-    });
-  });
-
-  guanteraDetailContent.querySelectorAll('.delete-btn').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      const ts = e.currentTarget.dataset.timestamp;
-      if (!confirm('¿Borrar entrada?')) return;
-      try {
-        await fetchSeguro({ action: 'deleteHistoryEntry', sheetName: 'Notas', timestamp: ts });
-        await loadVanHistory();
-        showGuanteraDetail(matricula);
-      } catch (err) {
-        alert('Error al borrar: ' + err.message);
-      }
-    });
-  });
-}
-
-/* ---------- FIN PARTE 1 ---------- */
-// app.js - parte 2/3
-
-/* ---------- RENDER: STOCK ---------- */
-function renderStockList(list) {
-  if (!stockListContainer) return;
-  stockListContainer.innerHTML = '';
-  if (!list || list.length === 0) {
-    stockListContainer.innerHTML = '<div class="text-muted">No hay recambios en stock.</div>';
+  if (!list.length) {
+    detail.innerHTML = `<div class="text-muted">No hay tareas registradas.</div>`;
     return;
   }
 
-  list.forEach(item => {
-    const card = document.createElement('div');
-    card.className = 'stock-item-card';
-    const lowClass = item.cantidad <= 1 ? 'badge-low' : (item.cantidad === 2 ? 'badge-warning' : 'badge-ok');
+  list.forEach((entry) => {
+    const card = document.createElement("div");
+    card.className = "history-entry-card p-2 rounded border mt-2 flex justify-between items-center";
+    const completed =
+      (entry.estado || "").toLowerCase() === "completado";
+
     card.innerHTML = `
-      <div class="font-semibold">${item.nombre}</div>
-      <div class="text-muted">Cantidad: <span class="${lowClass}">${item.cantidad}</span></div>
-      <div class="mt-2 flex gap-2">
-        <button data-name="${item.nombre}" class="btn stock-edit px-2 py-1 rounded bg-blue-600 text-white">Editar</button>
-        <button data-name="${item.nombre}" class="btn stock-delete px-2 py-1 rounded bg-red-600 text-white">Borrar</button>
+      <div class="mr-3">
+        <div class="font-semibold">${entry.timestamp}</div>
+        <div class="text-sm text-muted">${entry.nota || ""}</div>
       </div>
-    `;
-    stockListContainer.appendChild(card);
-  });
 
-  // listeners
-  stockListContainer.querySelectorAll('.stock-edit').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const nombre = e.currentTarget.dataset.name;
-      const item = stockDataStore.find(s => s.nombre === nombre);
-      if (item) {
-        stockNameInput.value = item.nombre;
-        stockQuantityInput.value = item.cantidad;
-        stockSaveBtn.textContent = 'Actualizar';
-        navigateToPage('page-seleccion-vans');
-        showSubpage('stock');
-      }
-    });
-  });
-
-  stockListContainer.querySelectorAll('.stock-delete').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      const nombre = e.currentTarget.dataset.name;
-      if (!confirm(`Borrar ${nombre}?`)) return;
-      try {
-        await fetchSeguro({ action: 'deleteStockItem', nombre });
-        await loadStock();
-      } catch (err) {
-        alert('Error al borrar: ' + err.message);
-      }
-    });
-  });
-}
-
-/* ---------- RENDER: VAN SELECTION (Crear tareas) ---------- */
-function renderVanSelection() {
-  if (!vanListContainer) return;
-  vanListContainer.innerHTML = '';
-  vehicles.forEach(v => {
-    const mat = v.matricula;
-    const card = document.createElement('div');
-    card.className = 'van-card van-selection-card';
-    card.dataset.matricula = mat;
-    card.innerHTML = `
-      <div class="font-semibold">${formatPlate(mat)}</div>
-      <div class="text-sm text-muted">${capitalize(v.marca)}</div>
-      <div class="mt-3">
-        <label class="text-sm text-muted block mb-1">Nota:</label>
-        <textarea id="note-${mat}" rows="2" class="w-full p-2 rounded bg-slate-800/60" placeholder="Nota..."></textarea>
-        <label class="text-sm text-muted block mt-2 mb-1">Recambios (enter para autocompletar):</label>
-        <input id="recambios-${mat}" data-matricula="${mat}" class="w-full p-2 rounded bg-slate-800/60 recambios-input" placeholder="Escribe recambio...">
-        <div id="deduction-tags-${mat}" class="mt-2 flex gap-2"></div>
-        <div class="mt-3 flex gap-2">
-          <button data-matricula="${mat}" class="btn save-van-data-btn px-3 py-2 rounded bg-green-600 text-white">Guardar Tarea</button>
-          <button data-matricula="${mat}" class="btn open-guantera-btn px-3 py-2 rounded bg-blue-600 text-white">Abrir Guantera</button>
-        </div>
-      </div>
-    `;
-    vanListContainer.appendChild(card);
-
-    // render pending tags if exist
-    if (pendingStockDeductions[mat] && pendingStockDeductions[mat].length) renderDeductionTags(mat);
-  });
-
-  // listeners
-  document.querySelectorAll('.save-van-data-btn').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      const m = e.currentTarget.dataset.matricula;
-      await handleVanDataSave(m);
-    });
-  });
-
-  document.querySelectorAll('.open-guantera-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const m = e.currentTarget.dataset.matricula;
-      navigateToPage('page-guantera');
-      showGuanteraDetail(m);
-    });
-  });
-
-  // autocompletado (enter)
-  document.querySelectorAll('.recambios-input').forEach(input => {
-    input.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Enter') {
-        ev.preventDefault();
-        const m = input.dataset.matricula;
-        const val = input.value.trim();
-        if (!val) return;
-        const match = stockDataStore.find(s => s.nombre.toLowerCase() === val.toLowerCase());
-        if (match && match.cantidad > 0) {
-          addStockDeductionForVehicle(m, match.nombre);
-          renderDeductionTags(m);
-          input.value = '';
-        } else {
-          alert('Recambio no encontrado o sin stock.');
+      <div class="flex gap-2">
+        ${
+          completed
+            ? `<span class="badge-ok">Completado</span>`
+            : `<button class="btn-history-complete" data-ts="${entry.timestamp}" data-m="${matricula}">Completar</button>`
         }
-      }
-    });
-  });
-}
-
-/* ---------- DEDUCCIONES (tags) ---------- */
-function renderDeductionTags(matricula) {
-  const container = document.getElementById(`deduction-tags-${matricula}`);
-  if (!container) return;
-  container.innerHTML = '';
-  const arr = pendingStockDeductions[matricula] || [];
-  arr.forEach((it, idx) => {
-    const span = document.createElement('span');
-    span.className = 'badge-warning';
-    span.innerHTML = `${it} (-1) <button data-idx="${idx}" data-matricula="${matricula}" class="remove-deduction ml-2">×</button>`;
-    container.appendChild(span);
-  });
-  container.querySelectorAll('.remove-deduction').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const idx = Number(e.currentTarget.dataset.idx);
-      const mat = e.currentTarget.dataset.matricula;
-      pendingStockDeductions[mat].splice(idx,1);
-      savePendingDeductionsToStorage();
-      renderDeductionTags(mat);
-    });
-  });
-}
-
-function addStockDeductionForVehicle(matricula, itemName) {
-  if (!pendingStockDeductions[matricula]) pendingStockDeductions[matricula] = [];
-  pendingStockDeductions[matricula].push(itemName);
-  savePendingDeductionsToStorage();
-}
-
-/* ---------- GUARDAR TAREA (saveVanNote) ---------- */
-async function handleVanDataSave(matricula) {
-  try {
-    const noteEl = document.getElementById(`note-${matricula}`);
-    const recEl = document.getElementById(`recambios-${matricula}`);
-    const note = noteEl ? noteEl.value : '';
-    const recambios = recEl ? recEl.value : '';
-    const usedStock = pendingStockDeductions[matricula] || [];
-
-    if (!note || note.trim().length < 1) return alert('La nota es obligatoria.');
-
-    const payload = {
-      action: 'saveVanNote',
-      matricula,
-      note,
-      recambios,
-      items_stock: JSON.stringify(usedStock)
-    };
-
-    const res = await fetchSeguro(payload);
-    alert(res.message || 'Nota guardada. Los recambios se restarán cuando completes la tarea.');
-
-    // limpiar UI local (opcional mantener en storage)
-    pendingStockDeductions[matricula] = [];
-    savePendingDeductionsToStorage();
-    renderDeductionTags(matricula);
-    if (noteEl) noteEl.value = '';
-    if (recEl) recEl.value = '';
-
-    await loadVanHistory();
-  } catch (e) {
-    alert('Error guardando nota: ' + e.message);
-  }
-}
-
-/* ---------- HISTORIAL (NOTAS) ---------- */
-async function loadVanHistory() {
-  try {
-    const res = await fetchSeguro({ action: 'getVanNotesHistory' });
-    const arr = res.data || [];
-    vanHistoryDataStore = {};
-    arr.forEach(entry => {
-      if (!vanHistoryDataStore[entry.matricula]) vanHistoryDataStore[entry.matricula] = [];
-      vanHistoryDataStore[entry.matricula].push(entry);
-    });
-    renderVanHistorySummaries();
-  } catch (e) {
-    console.error('Error historial:', e);
-    if (vanHistoryListContainer) vanHistoryListContainer.innerHTML = `<div class="text-red-400">Error al cargar historial: ${e.message}</div>`;
-  }
-}
-
-function renderVanHistorySummaries() {
-  if (!vanHistoryListContainer) return;
-  vanHistoryListContainer.innerHTML = '';
-  for (const mat of Object.keys(vanHistoryDataStore)) {
-    const entries = vanHistoryDataStore[mat];
-    const pendingCount = entries.filter(x => !x.estado || x.estado.toLowerCase() === 'pendiente').length;
-    const el = document.createElement('div');
-    el.className = 'van-card';
-    el.dataset.matricula = mat;
-    el.innerHTML = `
-      <div class="flex justify-between">
-        <div><strong>${formatPlate(mat)}</strong> <div class="text-sm text-muted">${entries.length} entrada(s)</div></div>
-        <div>${pendingCount ? `<span class="badge-warning">${pendingCount} pendientes</span>` : ''}</div>
+        <button class="btn-history-delete" data-ts="${entry.timestamp}" data-m="${matricula}">Borrar</button>
       </div>
-      <div class="mt-2"><button class="btn view-history px-3 py-1 rounded bg-blue-600 text-white" data-matricula="${mat}">Ver historial</button></div>
     `;
-    vanHistoryListContainer.appendChild(el);
-  }
 
-  vanHistoryListContainer.querySelectorAll('.view-history').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const mat = e.currentTarget.dataset.matricula;
-      navigateToPage('page-guantera');
-      showGuanteraDetail(mat);
-    });
+    detail.appendChild(card);
+  });
+
+  // Completar
+  qsa(".btn-history-complete").forEach((btn) => {
+    btn.onclick = async () => {
+      const ts = btn.dataset.ts;
+      const mat = btn.dataset.m;
+      await apiRequest("updateNoteStatus", {
+        timestamp: ts,
+        newStatus: "Completado",
+      });
+
+      await loadNotesHistory();
+      await loadStock();
+      openGuantera(mat);
+    };
+  });
+
+  // Borrar
+  qsa(".btn-history-delete").forEach((btn) => {
+    btn.onclick = async () => {
+      const ts = btn.dataset.ts;
+      const mat = btn.dataset.m;
+
+      if (!confirm("¿Eliminar entrada?")) return;
+
+      await apiRequest("deleteHistoryEntry", {
+        sheetName: "Notas",
+        timestamp: ts,
+        matricula: mat,
+      });
+
+      await loadNotesHistory();
+      openGuantera(mat);
+    };
   });
 }
 
-/* ---------- COMPLETAR ENTRADA (updateNoteStatus con usedStockItems) ---------- */
-async function handleCompleteHistoryEntry(timestamp) {
-  try {
-    const all = Object.values(vanHistoryDataStore).flat();
-    const entry = all.find(e => e.timestamp === timestamp);
-    let usedStockItems = [];
-
-    if (entry) {
-      if (entry.items_stock) {
-        try { const parsed = JSON.parse(entry.items_stock); if (Array.isArray(parsed)) usedStockItems = parsed; }
-        catch (e) { if (typeof entry.items_stock === 'string') usedStockItems = entry.items_stock.split(',').map(x=>x.trim()).filter(Boolean); }
-      }
-    }
-
-    const payload = { action: 'updateNoteStatus', timestamp, newStatus: 'Completado', usedStockItems };
-    const res = await fetchSeguro(payload);
-    alert(res.message || 'Tarea completada');
-    await loadVanHistory();
-    await loadStock(true);
-  } catch (e) {
-    alert('Error completando entrada: ' + e.message);
-  }
-}
-
-/* ---------- FIN PARTE 2 ---------- */
-// app.js - parte 3/3
-
-/* ---------- BORRAR ENTRADA ---------- */
-async function handleDeleteHistoryEntry(timestamp) {
-  if (!confirm('¿Seguro que deseas borrar esta entrada?')) return;
-  try {
-    const res = await fetchSeguro({ action: 'deleteHistoryEntry', timestamp });
-    alert(res.message || 'Entrada eliminada.');
-    await loadVanHistory();
-  } catch (e) {
-    alert('Error al borrar: ' + e.message);
-  }
-}
-
-/* ---------- BUSCADOR DE STOCK ---------- */
-if (searchStockInput) {
-  searchStockInput.addEventListener('input', () => {
-    const val = searchStockInput.value.toLowerCase();
-    const filtered = stockDataStore.filter(s => s.nombre.toLowerCase().includes(val));
-    renderStockList(filtered);
-  });
-}
-
-/* ---------- BUSCADOR DE FURGONETAS ---------- */
-if (searchInput) {
-  searchInput.addEventListener('input', () => {
-    const val = searchInput.value.toLowerCase();
-    const filtered = vehicles.filter(v =>
-      v.matricula.toLowerCase().includes(val) || (v.marca || '').toLowerCase().includes(val)
-    );
-    renderFilteredVanList(filtered);
-  });
-}
-
-function renderFilteredVanList(list) {
-  if (!vanListContainer) return;
-  vanListContainer.innerHTML = '';
-  list.forEach(v => {
-    const mat = v.matricula;
-    const card = document.createElement('div');
-    card.className = 'van-card van-selection-card';
-    card.dataset.matricula = mat;
-    card.innerHTML = `
-      <div class="font-semibold">${formatPlate(mat)}</div>
-      <div class="text-sm text-muted">${capitalize(v.marca)}</div>
-    `;
-    vanListContainer.appendChild(card);
-  });
-}
-
-/* ---------- LOGIN ---------- */
-if (loginForm) {
-  loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const pass = passwordInput.value.trim();
-    if (!pass) return;
-
-    showLoginStatus('Comprobando...', 'loading');
-    loginButton.disabled = true;
-
-    try {
-      const res = await fetchSeguro({ action: 'login', password: pass });
-      authToken = res.token;
-      showLoginStatus('Acceso permitido', 'success');
-      loginModal.classList.add('hidden');
-      appContainer.classList.remove('hidden');
-
-      await initializeApp();
-
-    } catch (err) {
-      showLoginStatus('Contraseña incorrecta', 'error');
-      loginButton.disabled = false;
-    }
-  });
-}
-
-/* ---------- NAVEGACIÓN ---------- */
-function navigateToPage(id) {
-  pageContents.forEach(p => p.classList.add('hidden'));
-  const page = document.getElementById(id);
-  if (page) page.classList.remove('hidden');
-
-  navLinks.forEach(link => link.classList.remove('border-blue-500', 'text-white'));
-  const activeLink = document.querySelector(`.nav-link[data-page="${id}"]`);
-  if (activeLink) {
-    activeLink.classList.add('border-blue-500', 'text-white');
-    activeLink.classList.remove('text-gray-400');
-  }
-
-  if (id === 'page-seleccion-vans') showSubpage('main');
-}
-
-navLinks.forEach(link => {
-  link.addEventListener('click', (e) => {
-    e.preventDefault();
-    const target = link.dataset.page;
-    navigateToPage(target);
-  });
-});
-
-/* ---------- SUBPÁGINAS DE SELECCIÓN ---------- */
-function showSubpage(name) {
-  vansChoiceMenu.classList.add('hidden');
-  vansSubpageUpload.classList.add('hidden');
-  vansSubpageGallery.classList.add('hidden');
-  vansSubpageStock.classList.add('hidden');
-
-  if (name === 'main') vansChoiceMenu.classList.remove('hidden');
-  if (name === 'upload') vansSubpageUpload.classList.remove('hidden');
-  if (name === 'gallery') vansSubpageGallery.classList.remove('hidden');
-  if (name === 'stock') vansSubpageStock.classList.remove('hidden');
-}
-
-document.querySelectorAll('.btn-back-to-vans-choice').forEach(btn => {
-  btn.addEventListener('click', () => showSubpage('main'));
-});
-
-if (btnShowVanUpload) btnShowVanUpload.addEventListener('click', () => showSubpage('upload'));
-if (btnShowVanGallery) btnShowVanGallery.addEventListener('click', () => showSubpage('gallery'));
-if (btnShowStock) btnShowStock.addEventListener('click', () => showSubpage('stock'));
-
-/* ---------- CARGA TOTAL DE LA APP ---------- */
-async function initializeApp() {
-  try {
-    loadPendingDeductionsFromStorage();
-    await loadVehicles();
-    await loadVanHistory();
-    await loadStock();
-
-    renderVorList();
-    renderGuanteraList();
-    renderVanSelection();
-
-    const visitRes = await fetchSeguro({ action: 'getVisitCounter' }).catch(()=>null);
-    if (visitRes && visitRes.counter && document.getElementById('global-visit-counter'))
-      document.getElementById('global-visit-counter').textContent = `Visitas: ${visitRes.counter}`;
-
-  } catch (e) {
-    console.error('Error inicializando app:', e);
-    alert('Error iniciando aplicación: ' + e.message);
-  }
-}
-
-/* ---------- QR ---------- */
-function renderQRList() {
-  const container = document.getElementById('qr-van-list-container');
-  if (!container) return;
-  container.innerHTML = '';
-  vehicles.forEach(v => {
-    const card = document.createElement('div');
-    card.className = 'qr-van-card van-card';
-    card.innerHTML = `
-      <div class="font-semibold mb-2">${formatPlate(v.matricula)}</div>
-      <canvas id="qr-${v.matricula}"></canvas>
-    `;
-    container.appendChild(card);
-    const canvas = document.getElementById(`qr-${v.matricula}`);
-    if (canvas) QRCode.toCanvas(canvas, v.vin || '---');
-  });
-}
-
-document.getElementById('nav-link-page-qr-vans')?.addEventListener('click', renderQRList);
-
-/* ---------- DEBUG ---------- */
-window.__APP_DEBUG__ = {
-  vehicles: () => vehicles,
-  stock: () => stockDataStore,
-  history: () => vanHistoryDataStore,
-  pending: () => pendingStockDeductions
-};
-
-/* ---------- FIN PARTE 3 ---------- */
-
-
+/* ---------------------------------------------------
+   FIN DE LA PARTE 2
+---------------------------------------------------- */
