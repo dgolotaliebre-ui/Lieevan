@@ -1,20 +1,19 @@
-// app.js - Reescrito y modularizado (modo PRO)
-// Reemplaza GAPS_URL por tu endpoint real
-const GAPS_URL = 'https://script.google.com/macros/s/AKfycb.../exec'; // <-- PON TU URL
+// app.js - parte 1/3
+// Reescrito modularmente. Une partes 1..N para crear app.js completo.
 
-// ----------------------
-// Estado interno
-// ----------------------
+/* ---------- CONFIG ---------- */
+const GAPS_URL = 'https://script.google.com/macros/s/AKfycbwEyozAk98y_r4Y3MZDYk5f6S-IguJSzMsUC2B069WTgJZKKg7AmJeTVob7c0NDKIZrtg/exec'; // Cambia por tu endpoint
+
+/* ---------- ESTADO GLOBAL ---------- */
 let authToken = null;
-let vehicles = [];               // lista de vehículos desde servidor
+let vehicles = [];               // [{matricula, marca, vin, ...}]
 let vanHistoryDataStore = {};    // { matricula: [entries] }
-let stockDataStore = [];         // [{nombre,cantidad}]
-let pendingStockDeductions = {}; // { matricula: [itemName,...] } - persistido a localStorage
+let stockDataStore = [];         // [{nombre, cantidad}]
+let pendingStockDeductions = {}; // { matricula: [nombreItem,...] }
+
 const placeholderImg = 'https://placehold.co/400x300/374151/E5E7EB?text=Sin+Imagen';
 
-// ----------------------
-// Selectores globales
-// ----------------------
+/* ---------- SELECTORES ---------- */
 const loginModal = document.getElementById('login-modal');
 const loginForm = document.getElementById('login-form');
 const passwordInput = document.getElementById('password-input');
@@ -55,10 +54,29 @@ const vansSubpageStock = document.getElementById('vans-subpage-stock');
 
 const vanHistoryListContainer = document.getElementById('van-history-list-container');
 
-// ----------------------
-// Utilidades
-// ----------------------
+/* ---------- UTILIDADES ---------- */
+function capitalize(s) { if (!s) return ''; return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase(); }
+
+function formatPlate(raw) {
+  if (!raw) return '---';
+  const s = raw.replace(/\s+/g, '');
+  if (s.length === 7) return s.slice(0,4) + ' ' + s.slice(4);
+  return raw;
+}
+
+function savePendingDeductionsToStorage() {
+  try { localStorage.setItem('pendingStockDeductions', JSON.stringify(pendingStockDeductions || {})); } catch(e){}
+}
+
+function loadPendingDeductionsFromStorage() {
+  try {
+    const raw = localStorage.getItem('pendingStockDeductions');
+    pendingStockDeductions = raw ? JSON.parse(raw) : {};
+  } catch (e) { pendingStockDeductions = {}; }
+}
+
 function showLoginStatus(message, type = 'info') {
+  if (!loginStatus) return;
   loginStatus.classList.remove('hidden', 'bg-green-600', 'bg-red-600', 'bg-blue-600');
   loginStatus.textContent = message;
   if (type === 'success') loginStatus.classList.add('bg-green-600');
@@ -66,28 +84,14 @@ function showLoginStatus(message, type = 'info') {
   else if (type === 'loading') loginStatus.classList.add('bg-blue-600');
 }
 
-function savePendingDeductionsToStorage() {
-  localStorage.setItem('pendingStockDeductions', JSON.stringify(pendingStockDeductions || {}));
-}
-
-function loadPendingDeductionsFromStorage() {
-  try {
-    const raw = localStorage.getItem('pendingStockDeductions');
-    pendingStockDeductions = raw ? JSON.parse(raw) : {};
-  } catch (e) {
-    pendingStockDeductions = {};
-  }
-}
-
-function capitalize(s) { if (!s) return ''; return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase(); }
-
+/* ---------- FETCH SEGURO (INCLUYE TOKEN) ---------- */
 async function fetchSeguro(payload) {
   if (!authToken && payload.action !== 'login') {
     throw new Error('No autorizado. Inicia sesión.');
   }
   const full = { ...payload, authToken };
   const res = await fetch(GAPS_URL, {
-    method: 'POST', mode: 'cors',
+    method: 'POST', mode: 'cors', redirect: 'follow',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify(full)
   });
@@ -97,73 +101,37 @@ async function fetchSeguro(payload) {
   return json;
 }
 
-// ----------------------
-// Inicialización
-// ----------------------
-async function initializeApp() {
-  loadPendingDeductionsFromStorage();
-  try {
-    await loadVehicles();
-    await loadStock(true);
-    renderVorList();
-    renderGuanteraList();
-    setupEventDelegation();
-    // Mostrar página principal
-    navigateToPage('page-operativa-vor');
-    document.getElementById('app-container').classList.remove('hidden');
-  } catch (e) {
-    console.error('Error init:', e);
-    alert('Error al iniciar: ' + e.message);
-  }
-}
-
-// ----------------------
-// NAV
-// ----------------------
-function navigateToPage(pageId) {
-  pageContents.forEach(p => p.classList.add('hidden'));
-  navLinks.forEach(n => n.classList.remove('text-white', 'font-semibold', 'border-blue-500'));
-  const target = document.getElementById(pageId);
-  if (target) target.classList.remove('hidden');
-  const link = document.getElementById(`nav-link-${pageId}`);
-  if (link) link.classList.add('text-white', 'font-semibold', 'border-blue-500');
-
-  // hide subpages back buttons / detail pages
-  if (pageId === 'page-guantera') {
-    guanteraListPage.classList.remove('hidden');
-    guanteraDetailPage.classList.add('hidden');
-  }
-}
-
-// ----------------------
-// VEHÍCULOS
-// ----------------------
+/* ---------- CARGAS INICIALES ---------- */
 async function loadVehicles() {
   const res = await fetchSeguro({ action: 'getVehicles' });
   vehicles = res.data || [];
-  // init pending arrays
+  // inicializar arrays de deducciones
   vehicles.forEach(v => {
     if (!pendingStockDeductions[v.matricula]) pendingStockDeductions[v.matricula] = [];
   });
   savePendingDeductionsToStorage();
 }
 
+async function loadStock(silent = false) {
+  try {
+    const res = await fetchSeguro({ action: 'getStock' });
+    stockDataStore = res.data || [];
+    renderStockList(stockDataStore);
+  } catch (e) {
+    console.error('Error carga stock', e);
+    if (!silent && stockListContainer) stockListContainer.innerHTML = `<div class="text-red-400">Error al cargar stock: ${e.message}</div>`;
+  }
+}
+
+/* ---------- RENDER: VOR / GUANTERA ---------- */
 function renderVorList() {
+  if (!vorVehicleList) return;
   vorVehicleList.innerHTML = '';
   vehicles.forEach(v => {
     const el = document.createElement('div');
-    el.className = 'van-card cursor-pointer';
+    el.className = 'van-card clickable';
     el.dataset.matricula = v.matricula;
-    el.innerHTML = `
-      <div>
-        <div class="font-bold text-lg">${formatPlate(v.matricula)}</div>
-        <div class="text-sm text-muted">${capitalize(v.marca)}</div>
-      </div>
-      <div class="mt-3">
-        <div class="text-sm text-muted">ITV: ${v.itv || '---'}</div>
-      </div>
-    `;
-    // click lleva a guantera y muestra detalles
+    el.innerHTML = `\n      <div>\n        <div class="font-bold text-lg">${formatPlate(v.matricula)}</div>\n        <div class="text-sm text-muted">${capitalize(v.marca)}</div>\n      </div>\n      <div class="mt-3">\n        <div class="text-sm text-muted">ITV: ${v.itv || '---'}</div>\n      </div>\n    `;
     el.addEventListener('click', () => {
       navigateToPage('page-guantera');
       showGuanteraDetail(v.matricula);
@@ -173,83 +141,47 @@ function renderVorList() {
 }
 
 function renderGuanteraList() {
+  if (!guanteraListContainer) return;
   guanteraListContainer.innerHTML = '';
   vehicles.forEach(v => {
     const card = document.createElement('div');
     card.className = 'guantera-card clickable';
     card.dataset.matricula = v.matricula;
-    card.innerHTML = `
-      <div class="font-semibold">${formatPlate(v.matricula)}</div>
-      <div class="text-sm text-muted">${capitalize(v.marca)}</div>
-      <div class="mt-2 text-sm">Vin: ${v.vin || '---'}</div>
-    `;
-    card.addEventListener('click', () => {
-      navigateToPage('page-guantera');
-      showGuanteraDetail(v.matricula);
-    });
+    card.innerHTML = `\n      <div class="font-semibold">${formatPlate(v.matricula)}</div>\n      <div class="text-sm text-muted">${capitalize(v.marca)}</div>\n      <div class="mt-2 text-sm">Vin: ${v.vin || '---'}</div>\n    `;
+    card.addEventListener('click', () => { navigateToPage('page-guantera'); showGuanteraDetail(v.matricula); });
     guanteraListContainer.appendChild(card);
   });
 }
 
+/* ---------- mostrar detalle guantera ---------- */
 function showGuanteraDetail(matricula) {
-  guanteraListPage.classList.add('hidden');
-  guanteraDetailPage.classList.remove('hidden');
-  btnBackToGuanteraList.classList.remove('hidden');
+  if (!guanteraDetailContent || !guanteraDetailTitle) return;
+  guanteraListPage && guanteraListPage.classList.add('hidden');
+  guanteraDetailPage && guanteraDetailPage.classList.remove('hidden');
+  btnBackToGuanteraList && btnBackToGuanteraList.classList.remove('hidden');
 
   const van = vehicles.find(x => x.matricula === matricula) || {};
   guanteraDetailTitle.textContent = `Guantera - ${formatPlate(matricula)}`;
 
-  // Mostrar info, documentos y tareas (si hay)
-  const infoHTML = `
-    <div class="van-card">
-      <div class="grid grid-cols-2 gap-4">
-        <div>
-          <div class="text-sm text-muted">Marca</div>
-          <div class="font-medium">${capitalize(van.marca) || '---'}</div>
-        </div>
-        <div>
-          <div class="text-sm text-muted">Renting</div>
-          <div class="font-medium">${capitalize(van.renting) || '---'}</div>
-        </div>
-        <div>
-          <div class="text-sm text-muted">Nº Póliza</div>
-          <div class="font-medium">${van.poliza || '---'}</div>
-        </div>
-        <div>
-          <div class="text-sm text-muted">VIN</div>
-          <div class="font-medium">${van.vin || '---'}</div>
-        </div>
-      </div>
-    </div>
-  `;
+  const infoHTML = `\n    <div class="van-card">\n      <div class="grid grid-cols-2 gap-4">\n        <div>\n          <div class="text-sm text-muted">Marca</div>\n          <div class="font-medium">${capitalize(van.marca) || '---'}</div>\n        </div>\n        <div>\n          <div class="text-sm text-muted">Renting</div>\n          <div class="font-medium">${capitalize(van.renting) || '---'}</div>\n        </div>\n        <div>\n          <div class="text-sm text-muted">Nº Póliza</div>\n          <div class="font-medium">${van.poliza || '---'}</div>\n        </div>\n        <div>\n          <div class="text-sm text-muted">VIN</div>\n          <div class="font-medium">${van.vin || '---'}</div>\n        </div>\n      </div>\n    </div>\n  `;
 
-  // tareas del historial
-  const tareas = (vanHistoryDataStore[matricula] || []).slice(0, 20);
+  const tareas = (vanHistoryDataStore[matricula] || []).slice(0,20);
   let tareasHTML = `<div class="van-card"><h4 class="font-semibold mb-2">Historial de Tareas</h4>`;
   if (!tareas.length) tareasHTML += `<div class="text-muted">No hay tareas registradas.</div>`;
   else {
     tareas.forEach(t => {
-      tareasHTML += `<div class="history-entry-card mb-2 p-2 border rounded">
-        <div class="flex justify-between">
-          <div><strong>${t.timestamp}</strong> <span class="text-sm text-muted"> ${t.nota ? '- ' + t.nota : ''}</span></div>
-          <div class="flex gap-2">
-            ${t.estado && t.estado.toLowerCase() === 'completado' ? '<span class="badge-ok">Completado</span>' : `<button data-timestamp="${t.timestamp}" class="complete-btn px-2 py-1 rounded bg-green-600 text-white">Completar</button>`}
-            <button data-timestamp="${t.timestamp}" class="delete-btn px-2 py-1 rounded bg-red-600 text-white">Borrar</button>
-          </div>
-        </div>
-      </div>`;
+      tareasHTML += `<div class="history-entry-card mb-2 p-2 border rounded">\n        <div class="flex justify-between">\n          <div><strong>${t.timestamp}</strong> <span class="text-sm text-muted"> ${t.nota ? '- ' + t.nota : ''}</span></div>\n          <div class="flex gap-2">\n            ${t.estado && t.estado.toLowerCase() === 'completado' ? '<span class="badge-ok">Completado</span>' : `<button data-timestamp="${t.timestamp}" class="complete-btn px-2 py-1 rounded bg-green-600 text-white">Completar</button>`}\n            <button data-timestamp="${t.timestamp}" class="delete-btn px-2 py-1 rounded bg-red-600 text-white">Borrar</button>\n          </div>\n        </div>\n      </div>`;
     });
   }
   tareasHTML += `</div>`;
 
   guanteraDetailContent.innerHTML = infoHTML + tareasHTML;
 
-  // listeners para completar/borrar en detalle
+  // añadir listeners a botones dentro del detalle
   guanteraDetailContent.querySelectorAll('.complete-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       const timestamp = e.currentTarget.dataset.timestamp;
       await handleCompleteHistoryEntry(timestamp);
-      // refrescar
       await loadVanHistory();
       showGuanteraDetail(matricula);
       await loadStock(true);
@@ -271,36 +203,18 @@ function showGuanteraDetail(matricula) {
   });
 }
 
-// ----------------------
-// FORMATO
-// ----------------------
-function formatPlate(raw) {
-  if (!raw) return '---';
-  const s = raw.replace(/\s+/g, '');
-  if (s.length === 7) return s.slice(0,4) + ' ' + s.slice(4);
-  return raw;
-}
+/* ---------- FIN PARTE 1 ---------- */
+// app.js - parte 2/3
 
-// ----------------------
-// STOCK
-// ----------------------
-async function loadStock(silent = false) {
-  try {
-    const res = await fetchSeguro({ action: 'getStock' });
-    stockDataStore = res.data || [];
-    renderStockList(stockDataStore);
-  } catch (e) {
-    console.error('Error carga stock', e);
-    if (!silent) stockListContainer.innerHTML = `<div class="text-red-400">Error al cargar stock: ${e.message}</div>`;
-  }
-}
-
+/* ---------- RENDER: STOCK ---------- */
 function renderStockList(list) {
+  if (!stockListContainer) return;
   stockListContainer.innerHTML = '';
-  if (!list.length) {
+  if (!list || list.length === 0) {
     stockListContainer.innerHTML = '<div class="text-muted">No hay recambios en stock.</div>';
     return;
   }
+
   list.forEach(item => {
     const card = document.createElement('div');
     card.className = 'stock-item-card';
@@ -316,7 +230,7 @@ function renderStockList(list) {
     stockListContainer.appendChild(card);
   });
 
-  // Delegation for edit/delete
+  // listeners
   stockListContainer.querySelectorAll('.stock-edit').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const nombre = e.currentTarget.dataset.name;
@@ -325,8 +239,6 @@ function renderStockList(list) {
         stockNameInput.value = item.nombre;
         stockQuantityInput.value = item.cantidad;
         stockSaveBtn.textContent = 'Actualizar';
-        // focus
-        stockQuantityInput.focus();
         navigateToPage('page-seleccion-vans');
         showSubpage('stock');
       }
@@ -347,216 +259,9 @@ function renderStockList(list) {
   });
 }
 
-async function handleSaveStock(e) {
-  e && e.preventDefault();
-  const nombre = stockNameInput.value && stockNameInput.value.trim();
-  const cantidad = Number(stockQuantityInput.value);
-  if (!nombre || isNaN(cantidad)) return alert('Nombre y cantidad válidos');
-
-  try {
-    await fetchSeguro({ action: 'saveStockItem', nombre, cantidad });
-    stockNameInput.value = '';
-    stockQuantityInput.value = '';
-    stockSaveBtn.textContent = 'Guardar';
-    await loadStock();
-    alert('Stock guardado/actualizado');
-  } catch (err) {
-    alert('Error guardando stock: ' + err.message);
-  }
-}
-
-// ----------------------
-// HISTORIAL (Notas)
- // ----------------------
-async function loadVanHistory() {
-  try {
-    const res = await fetchSeguro({ action: 'getVanNotesHistory' });
-    const arr = res.data || [];
-    // organizar por matrícula
-    vanHistoryDataStore = {};
-    arr.forEach(entry => {
-      if (!vanHistoryDataStore[entry.matricula]) vanHistoryDataStore[entry.matricula] = [];
-      vanHistoryDataStore[entry.matricula].push(entry);
-    });
-    renderVanHistorySummaries();
-  } catch (e) {
-    console.error('Error historial:', e);
-    vanHistoryListContainer.innerHTML = `<div class="text-red-400">Error al cargar historial: ${e.message}</div>`;
-  }
-}
-
-function renderVanHistorySummaries() {
-  vanHistoryListContainer.innerHTML = '';
-  for (const mat of Object.keys(vanHistoryDataStore)) {
-    const entries = vanHistoryDataStore[mat];
-    const pendingCount = entries.filter(x => !x.estado || x.estado.toLowerCase() === 'pendiente').length;
-    const el = document.createElement('div');
-    el.className = 'van-card';
-    el.dataset.matricula = mat;
-    el.innerHTML = `
-      <div class="flex justify-between">
-        <div><strong>${formatPlate(mat)}</strong> <div class="text-sm text-muted">${entries.length} entrada(s)</div></div>
-        <div>${pendingCount ? `<span class="badge-warning">${pendingCount} pendientes</span>` : ''}</div>
-      </div>
-      <div class="mt-2"><button class="btn view-history px-3 py-1 rounded bg-blue-600 text-white" data-matricula="${mat}">Ver historial</button></div>
-    `;
-    vanHistoryListContainer.appendChild(el);
-  }
-
-  // listeners
-  vanHistoryListContainer.querySelectorAll('.view-history').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const mat = e.currentTarget.dataset.matricula;
-      // llevar a guantera -> detalle
-      navigateToPage('page-guantera');
-      showGuanteraDetail(mat);
-    });
-  });
-}
-
-/**
- * Complete history entry.
- * - Recupera items_stock de la entrada
- * - Envía usedStockItems al servidor para que descuente
- * - Actualiza frontend llamando a loadVanHistory() y loadStock()
- */
-async function handleCompleteHistoryEntry(timestamp) {
-  try {
-    // buscar la entrada en vanHistoryDataStore
-    const all = Object.values(vanHistoryDataStore).flat();
-    const entry = all.find(e => e.timestamp === timestamp);
-    let usedStockItems = [];
-
-    if (entry) {
-      // si hay campo items_stock y es JSON, usarlo
-      if (entry.items_stock) {
-        try {
-          const parsed = JSON.parse(entry.items_stock);
-          if (Array.isArray(parsed)) usedStockItems = parsed;
-        } catch (e) {
-          // fallback: si es csv
-          if (typeof entry.items_stock === 'string') {
-            usedStockItems = entry.items_stock.split(',').map(x => x.trim()).filter(Boolean);
-          }
-        }
-      }
-    }
-
-    // Enviar petición que actualiza estado + items usados (el backend debe restar)
-    const payload = { action: 'updateNoteStatus', timestamp, newStatus: 'Completado', usedStockItems };
-    const res = await fetchSeguro(payload);
-
-    alert(res.message || 'Tarea marcada como completada');
-    await loadVanHistory();
-    await loadStock(true);
-  } catch (e) {
-    alert('Error completando entrada: ' + e.message);
-  }
-}
-
-// ----------------------
-// AUTOCOMPLETADO + DEDUCCIONES (en formulario de guardado de nota)
-// ----------------------
-function addStockDeductionForVehicle(matricula, itemName) {
-  if (!pendingStockDeductions[matricula]) pendingStockDeductions[matricula] = [];
-  pendingStockDeductions[matricula].push(itemName);
-  savePendingDeductionsToStorage();
-}
-
-// ----------------------
-// SUBPAGES - helpers para mostrar sub-secciones dentro de Selección
-// ----------------------
-function showSubpage(name) {
-  vansChoiceMenu.classList.add('hidden');
-  vansSubpageUpload.classList.add('hidden');
-  vansSubpageGallery.classList.add('hidden');
-  vansSubpageStock.classList.add('hidden');
-
-  if (name === 'upload') vansSubpageUpload.classList.remove('hidden');
-  if (name === 'gallery') vansSubpageGallery.classList.remove('hidden');
-  if (name === 'stock') vansSubpageStock.classList.remove('hidden');
-}
-
-// ----------------------
-// EVENTOS y DELEGACIÓN
-// ----------------------
-function setupEventDelegation() {
-  // nav links
-  navLinks.forEach(link => {
-    link.addEventListener('click', (e) => {
-      e.preventDefault();
-      const page = link.dataset.page;
-      navigateToPage(page);
-    });
-  });
-
-  // login
-  loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const pass = passwordInput.value;
-    if (!pass) return;
-    try {
-      loginButton.disabled = true;
-      showLoginStatus('Verificando...', 'loading');
-      const res = await fetch(GAPS_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'login', password: pass })
-      });
-      const json = await res.json();
-      if (json.status === 'success' && json.authToken) {
-        authToken = json.authToken;
-        showLoginStatus('Acceso concedido', 'success');
-        loginModal.style.display = 'none';
-        await initializeApp();
-      } else {
-        showLoginStatus('Error: ' + (json.message || 'Credenciales'), 'error');
-        loginButton.disabled = false;
-      }
-    } catch (err) {
-      showLoginStatus('Error: ' + err.message, 'error');
-      loginButton.disabled = false;
-    }
-  });
-
-  // mostrar subpages de selección
-  btnShowVanUpload.addEventListener('click', () => { navigateToPage('page-seleccion-vans'); showSubpage('upload'); renderVanSelection(); });
-  btnShowVanGallery.addEventListener('click', () => { navigateToPage('page-seleccion-vans'); showSubpage('gallery'); loadVanHistory(); });
-  btnShowStock.addEventListener('click', () => { navigateToPage('page-seleccion-vans'); showSubpage('stock'); loadStock(); });
-
-  // stock form
-  stockForm.addEventListener('submit', handleSaveStock);
-  searchStockInput.addEventListener('input', () => {
-    const q = searchStockInput.value.toLowerCase();
-    renderStockList(stockDataStore.filter(s => s.nombre.toLowerCase().includes(q)));
-  });
-
-  // back guantera
-  btnBackToGuanteraList.addEventListener('click', () => {
-    guanteraDetailPage.classList.add('hidden');
-    guanteraListPage.classList.remove('hidden');
-    btnBackToGuanteraList.classList.add('hidden');
-  });
-
-  // search van in upload page
-  searchInput && searchInput.addEventListener('input', () => {
-    const q = searchInput.value.toUpperCase().replace(/\s/g, '');
-    const cards = vanListContainer.querySelectorAll('.van-selection-card');
-    let found = 0;
-    cards.forEach(c => {
-      const plate = c.dataset.matricula.replace(/\s/g, '').toUpperCase();
-      if (plate.includes(q)) { c.classList.remove('hidden'); found++; } else c.classList.add('hidden');
-    });
-  });
-
-  // inicial render simple
-  renderVanSelection();
-}
-
-// ----------------------
-// RENDER: Selección / Crear tarea
-// ----------------------
+/* ---------- RENDER: VAN SELECTION (Crear tareas) ---------- */
 function renderVanSelection() {
+  if (!vanListContainer) return;
   vanListContainer.innerHTML = '';
   vehicles.forEach(v => {
     const mat = v.matricula;
@@ -569,7 +274,7 @@ function renderVanSelection() {
       <div class="mt-3">
         <label class="text-sm text-muted block mb-1">Nota:</label>
         <textarea id="note-${mat}" rows="2" class="w-full p-2 rounded bg-slate-800/60" placeholder="Nota..."></textarea>
-        <label class="text-sm text-muted block mt-2 mb-1">Recambios (autocompletar):</label>
+        <label class="text-sm text-muted block mt-2 mb-1">Recambios (enter para autocompletar):</label>
         <input id="recambios-${mat}" data-matricula="${mat}" class="w-full p-2 rounded bg-slate-800/60 recambios-input" placeholder="Escribe recambio...">
         <div id="deduction-tags-${mat}" class="mt-2 flex gap-2"></div>
         <div class="mt-3 flex gap-2">
@@ -580,19 +285,18 @@ function renderVanSelection() {
     `;
     vanListContainer.appendChild(card);
 
-    // restore pending tags for mat
-    if (pendingStockDeductions[mat] && pendingStockDeductions[mat].length) {
-      renderDeductionTags(mat);
-    }
+    // render pending tags if exist
+    if (pendingStockDeductions[mat] && pendingStockDeductions[mat].length) renderDeductionTags(mat);
   });
 
-  // listeners: delegación simple
+  // listeners
   document.querySelectorAll('.save-van-data-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       const m = e.currentTarget.dataset.matricula;
       await handleVanDataSave(m);
     });
   });
+
   document.querySelectorAll('.open-guantera-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const m = e.currentTarget.dataset.matricula;
@@ -601,10 +305,9 @@ function renderVanSelection() {
     });
   });
 
-  // autocompletado simple: usa stockDataStore
+  // autocompletado (enter)
   document.querySelectorAll('.recambios-input').forEach(input => {
     input.addEventListener('keydown', (ev) => {
-      // on enter, add the current value as deduction (if exists in stock)
       if (ev.key === 'Enter') {
         ev.preventDefault();
         const m = input.dataset.matricula;
@@ -623,8 +326,10 @@ function renderVanSelection() {
   });
 }
 
+/* ---------- DEDUCCIONES (tags) ---------- */
 function renderDeductionTags(matricula) {
   const container = document.getElementById(`deduction-tags-${matricula}`);
+  if (!container) return;
   container.innerHTML = '';
   const arr = pendingStockDeductions[matricula] || [];
   arr.forEach((it, idx) => {
@@ -633,27 +338,30 @@ function renderDeductionTags(matricula) {
     span.innerHTML = `${it} (-1) <button data-idx="${idx}" data-matricula="${matricula}" class="remove-deduction ml-2">×</button>`;
     container.appendChild(span);
   });
-  // attach remove handlers
   container.querySelectorAll('.remove-deduction').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const idx = Number(e.currentTarget.dataset.idx);
       const mat = e.currentTarget.dataset.matricula;
-      pendingStockDeductions[mat].splice(idx, 1);
+      pendingStockDeductions[mat].splice(idx,1);
       savePendingDeductionsToStorage();
       renderDeductionTags(mat);
     });
   });
 }
 
-// ----------------------
-// Guardar Tarea -> envia usedStockItems pero no descuenta aquí (descuento al completar)
-// Se guarda items_stock dentro de la entrada en el servidor para que luego
-// en updateNoteStatus el backend pueda restar cuando se marque completado.
-// ----------------------
+function addStockDeductionForVehicle(matricula, itemName) {
+  if (!pendingStockDeductions[matricula]) pendingStockDeductions[matricula] = [];
+  pendingStockDeductions[matricula].push(itemName);
+  savePendingDeductionsToStorage();
+}
+
+/* ---------- GUARDAR TAREA (saveVanNote) ---------- */
 async function handleVanDataSave(matricula) {
   try {
-    const note = document.getElementById(`note-${matricula}`).value;
-    const recambios = document.getElementById(`recambios-${matricula}`).value;
+    const noteEl = document.getElementById(`note-${matricula}`);
+    const recEl = document.getElementById(`recambios-${matricula}`);
+    const note = noteEl ? noteEl.value : '';
+    const recambios = recEl ? recEl.value : '';
     const usedStock = pendingStockDeductions[matricula] || [];
 
     if (!note || note.trim().length < 1) return alert('La nota es obligatoria.');
@@ -663,44 +371,264 @@ async function handleVanDataSave(matricula) {
       matricula,
       note,
       recambios,
-      items_stock: JSON.stringify(usedStock)  // guardamos en registro
+      items_stock: JSON.stringify(usedStock)
     };
 
     const res = await fetchSeguro(payload);
     alert(res.message || 'Nota guardada. Los recambios se restarán cuando completes la tarea.');
 
-    // limpiar UI local (las deducciones se mantienen en localStorage si quieres)
+    // limpiar UI local (opcional mantener en storage)
     pendingStockDeductions[matricula] = [];
     savePendingDeductionsToStorage();
     renderDeductionTags(matricula);
-    document.getElementById(`note-${matricula}`).value = '';
-    document.getElementById(`recambios-${matricula}`).value = '';
+    if (noteEl) noteEl.value = '';
+    if (recEl) recEl.value = '';
 
-    // actualizar historial local
     await loadVanHistory();
   } catch (e) {
     alert('Error guardando nota: ' + e.message);
   }
 }
 
-// ----------------------
-// Inicial kickoff cuando el usuario inicia sesión
-// ----------------------
-(async function bootstrap() {
-  // para desarrollo, si quieres saltarte login, comenta el return y asigna authToken manualmente
-  // return;
+/* ---------- HISTORIAL (NOTAS) ---------- */
+async function loadVanHistory() {
+  try {
+    const res = await fetchSeguro({ action: 'getVanNotesHistory' });
+    const arr = res.data || [];
+    vanHistoryDataStore = {};
+    arr.forEach(entry => {
+      if (!vanHistoryDataStore[entry.matricula]) vanHistoryDataStore[entry.matricula] = [];
+      vanHistoryDataStore[entry.matricula].push(entry);
+    });
+    renderVanHistorySummaries();
+  } catch (e) {
+    console.error('Error historial:', e);
+    if (vanHistoryListContainer) vanHistoryListContainer.innerHTML = `<div class="text-red-400">Error al cargar historial: ${e.message}</div>`;
+  }
+}
 
-  // Keep script as module: event listeners set in setupEventDelegation
-})();
+function renderVanHistorySummaries() {
+  if (!vanHistoryListContainer) return;
+  vanHistoryListContainer.innerHTML = '';
+  for (const mat of Object.keys(vanHistoryDataStore)) {
+    const entries = vanHistoryDataStore[mat];
+    const pendingCount = entries.filter(x => !x.estado || x.estado.toLowerCase() === 'pendiente').length;
+    const el = document.createElement('div');
+    el.className = 'van-card';
+    el.dataset.matricula = mat;
+    el.innerHTML = `
+      <div class="flex justify-between">
+        <div><strong>${formatPlate(mat)}</strong> <div class="text-sm text-muted">${entries.length} entrada(s)</div></div>
+        <div>${pendingCount ? `<span class="badge-warning">${pendingCount} pendientes</span>` : ''}</div>
+      </div>
+      <div class="mt-2"><button class="btn view-history px-3 py-1 rounded bg-blue-600 text-white" data-matricula="${mat}">Ver historial</button></div>
+    `;
+    vanHistoryListContainer.appendChild(el);
+  }
 
-// Exponer algunas funciones para debug (opcional)
-window._app = {
-  initializeApp,
-  loadVehicles,
-  loadStock,
-  loadVanHistory,
-  pendingStockDeductions,
-  addStockDeductionForVehicle
+  vanHistoryListContainer.querySelectorAll('.view-history').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const mat = e.currentTarget.dataset.matricula;
+      navigateToPage('page-guantera');
+      showGuanteraDetail(mat);
+    });
+  });
+}
+
+/* ---------- COMPLETAR ENTRADA (updateNoteStatus con usedStockItems) ---------- */
+async function handleCompleteHistoryEntry(timestamp) {
+  try {
+    const all = Object.values(vanHistoryDataStore).flat();
+    const entry = all.find(e => e.timestamp === timestamp);
+    let usedStockItems = [];
+
+    if (entry) {
+      if (entry.items_stock) {
+        try { const parsed = JSON.parse(entry.items_stock); if (Array.isArray(parsed)) usedStockItems = parsed; }
+        catch (e) { if (typeof entry.items_stock === 'string') usedStockItems = entry.items_stock.split(',').map(x=>x.trim()).filter(Boolean); }
+      }
+    }
+
+    const payload = { action: 'updateNoteStatus', timestamp, newStatus: 'Completado', usedStockItems };
+    const res = await fetchSeguro(payload);
+    alert(res.message || 'Tarea completada');
+    await loadVanHistory();
+    await loadStock(true);
+  } catch (e) {
+    alert('Error completando entrada: ' + e.message);
+  }
+}
+
+/* ---------- FIN PARTE 2 ---------- */
+// app.js - parte 3/3
+
+/* ---------- BORRAR ENTRADA ---------- */
+async function handleDeleteHistoryEntry(timestamp) {
+  if (!confirm('¿Seguro que deseas borrar esta entrada?')) return;
+  try {
+    const res = await fetchSeguro({ action: 'deleteHistoryEntry', timestamp });
+    alert(res.message || 'Entrada eliminada.');
+    await loadVanHistory();
+  } catch (e) {
+    alert('Error al borrar: ' + e.message);
+  }
+}
+
+/* ---------- BUSCADOR DE STOCK ---------- */
+if (searchStockInput) {
+  searchStockInput.addEventListener('input', () => {
+    const val = searchStockInput.value.toLowerCase();
+    const filtered = stockDataStore.filter(s => s.nombre.toLowerCase().includes(val));
+    renderStockList(filtered);
+  });
+}
+
+/* ---------- BUSCADOR DE FURGONETAS ---------- */
+if (searchInput) {
+  searchInput.addEventListener('input', () => {
+    const val = searchInput.value.toLowerCase();
+    const filtered = vehicles.filter(v =>
+      v.matricula.toLowerCase().includes(val) || (v.marca || '').toLowerCase().includes(val)
+    );
+    renderFilteredVanList(filtered);
+  });
+}
+
+function renderFilteredVanList(list) {
+  if (!vanListContainer) return;
+  vanListContainer.innerHTML = '';
+  list.forEach(v => {
+    const mat = v.matricula;
+    const card = document.createElement('div');
+    card.className = 'van-card van-selection-card';
+    card.dataset.matricula = mat;
+    card.innerHTML = `
+      <div class="font-semibold">${formatPlate(mat)}</div>
+      <div class="text-sm text-muted">${capitalize(v.marca)}</div>
+    `;
+    vanListContainer.appendChild(card);
+  });
+}
+
+/* ---------- LOGIN ---------- */
+if (loginForm) {
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const pass = passwordInput.value.trim();
+    if (!pass) return;
+
+    showLoginStatus('Comprobando...', 'loading');
+    loginButton.disabled = true;
+
+    try {
+      const res = await fetchSeguro({ action: 'login', password: pass });
+      authToken = res.token;
+      showLoginStatus('Acceso permitido', 'success');
+      loginModal.classList.add('hidden');
+      appContainer.classList.remove('hidden');
+
+      await initializeApp();
+
+    } catch (err) {
+      showLoginStatus('Contraseña incorrecta', 'error');
+      loginButton.disabled = false;
+    }
+  });
+}
+
+/* ---------- NAVEGACIÓN ---------- */
+function navigateToPage(id) {
+  pageContents.forEach(p => p.classList.add('hidden'));
+  const page = document.getElementById(id);
+  if (page) page.classList.remove('hidden');
+
+  navLinks.forEach(link => link.classList.remove('border-blue-500', 'text-white'));
+  const activeLink = document.querySelector(`.nav-link[data-page="${id}"]`);
+  if (activeLink) {
+    activeLink.classList.add('border-blue-500', 'text-white');
+    activeLink.classList.remove('text-gray-400');
+  }
+
+  if (id === 'page-seleccion-vans') showSubpage('main');
+}
+
+navLinks.forEach(link => {
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    const target = link.dataset.page;
+    navigateToPage(target);
+  });
+});
+
+/* ---------- SUBPÁGINAS DE SELECCIÓN ---------- */
+function showSubpage(name) {
+  vansChoiceMenu.classList.add('hidden');
+  vansSubpageUpload.classList.add('hidden');
+  vansSubpageGallery.classList.add('hidden');
+  vansSubpageStock.classList.add('hidden');
+
+  if (name === 'main') vansChoiceMenu.classList.remove('hidden');
+  if (name === 'upload') vansSubpageUpload.classList.remove('hidden');
+  if (name === 'gallery') vansSubpageGallery.classList.remove('hidden');
+  if (name === 'stock') vansSubpageStock.classList.remove('hidden');
+}
+
+document.querySelectorAll('.btn-back-to-vans-choice').forEach(btn => {
+  btn.addEventListener('click', () => showSubpage('main'));
+});
+
+if (btnShowVanUpload) btnShowVanUpload.addEventListener('click', () => showSubpage('upload'));
+if (btnShowVanGallery) btnShowVanGallery.addEventListener('click', () => showSubpage('gallery'));
+if (btnShowStock) btnShowStock.addEventListener('click', () => showSubpage('stock'));
+
+/* ---------- CARGA TOTAL DE LA APP ---------- */
+async function initializeApp() {
+  try {
+    loadPendingDeductionsFromStorage();
+    await loadVehicles();
+    await loadVanHistory();
+    await loadStock();
+
+    renderVorList();
+    renderGuanteraList();
+    renderVanSelection();
+
+    const visitRes = await fetchSeguro({ action: 'getVisitCounter' }).catch(()=>null);
+    if (visitRes && visitRes.counter && document.getElementById('global-visit-counter'))
+      document.getElementById('global-visit-counter').textContent = `Visitas: ${visitRes.counter}`;
+
+  } catch (e) {
+    console.error('Error inicializando app:', e);
+    alert('Error iniciando aplicación: ' + e.message);
+  }
+}
+
+/* ---------- QR ---------- */
+function renderQRList() {
+  const container = document.getElementById('qr-van-list-container');
+  if (!container) return;
+  container.innerHTML = '';
+  vehicles.forEach(v => {
+    const card = document.createElement('div');
+    card.className = 'qr-van-card van-card';
+    card.innerHTML = `
+      <div class="font-semibold mb-2">${formatPlate(v.matricula)}</div>
+      <canvas id="qr-${v.matricula}"></canvas>
+    `;
+    container.appendChild(card);
+    const canvas = document.getElementById(`qr-${v.matricula}`);
+    if (canvas) QRCode.toCanvas(canvas, v.vin || '---');
+  });
+}
+
+document.getElementById('nav-link-page-qr-vans')?.addEventListener('click', renderQRList);
+
+/* ---------- DEBUG ---------- */
+window.__APP_DEBUG__ = {
+  vehicles: () => vehicles,
+  stock: () => stockDataStore,
+  history: () => vanHistoryDataStore,
+  pending: () => pendingStockDeductions
 };
 
-// Si te logeas desde la UI, initializeApp se llama tras login
+/* ---------- FIN PARTE 3 ---------- */

@@ -1,50 +1,167 @@
-/* style.css - versión mejorada y compacta */
+/* ================================================================
+   style.css - Versión completa, mejorada y totalmente compatible
+   con Tailwind + el index.html generado
+   ================================================================ */
 
-/* Tipografía y fondo */
+/* -------------------------------
+   1. Reset base
+--------------------------------*/
 body {
-  font-family: 'Inter', sans-serif;
-  background: linear-gradient(135deg, rgba(17,24,39,0.9), rgba(15,23,42,0.85));
-  color: #e6eef8;
+    font-family: 'Inter', sans-serif;
+    background: #0f172a; /* Slate-900 */
+    color: #e2e8f0;      /* Slate-200 */
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
 }
 
-/* Tarjetas */
+/* -------------------------------
+   2. Global utility classes
+--------------------------------*/
+.hidden {
+    display: none !important;
+}
+
+.text-muted {
+    color: #94a3b8; /* slate-400 */
+}
+
+.clickable {
+    cursor: pointer;
+    transition: 0.15s ease;
+}
+
+.clickable:hover {
+    opacity: 0.85;
+}
+
+/* -------------------------------
+   3. Card styles
+--------------------------------*/
 .van-card,
 .stock-item-card,
 .history-entry-card,
 .guantera-card {
-  background: rgba(30,41,59,0.6);
-  border: 1px solid rgba(100,116,139,0.15);
-  padding: 1rem;
-  border-radius: 12px;
+    background: rgba(30, 41, 59, 0.55); /* slate-800/60 */
+    border: 1px solid rgba(100, 116, 139, 0.2);
+    padding: 1rem;
+    border-radius: 14px;
+    backdrop-filter: blur(4px);
 }
 
-/* Botones */
-button, .btn {
-  cursor: pointer;
-  transition: all .15s ease;
-}
-button:disabled { opacity: 0.6; cursor: not-allowed; }
-
-/* Inputs */
-input, textarea {
-  background: rgba(15,23,42,0.6);
-  border: 1px solid rgba(100,116,139,0.12);
-  color: #e6eef8;
-  padding: .6rem;
-  border-radius: 8px;
+/* -------------------------------
+   4. Buttons
+--------------------------------*/
+button,
+.btn {
+    cursor: pointer;
+    transition: 0.15s ease;
 }
 
-/* Badges / stock low */
-.badge-low { background:#7f1d1d; color:white; padding: .2rem .5rem; border-radius: 999px; font-weight:600; font-size: .75rem; }
-.badge-warning { background:#92400e; color:white; padding: .2rem .5rem; border-radius: 999px; font-weight:600; font-size: .75rem; }
-.badge-ok { background:#064e3b; color:white; padding: .2rem .5rem; border-radius: 999px; font-weight:600; font-size: .75rem; }
+button:disabled,
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
 
-/* Small helpers */
-.hidden { display: none !important; }
-.text-muted { color: #9ca3af; }
+/* -------------------------------
+   5. Input & textarea
+--------------------------------*/
+input,
+textarea {
+    background: rgba(15, 23, 42, 0.6); /* slate-900/60 */
+    border: 1px solid rgba(100, 116, 139, 0.25);
+    color: #e2e8f0;
+    padding: 0.6rem;
+    border-radius: 8px;
+    width: 100%;
+}
 
-/* Responsive adjustments */
+input:focus,
+textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 1px #3b82f6;
+}
+
+/* -------------------------------
+   6. Badges (Stock/Estado)
+--------------------------------*/
+.badge-low {
+    background: #b91c1c;
+    color: white;
+    padding: 0.2rem 0.5rem;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 0.75rem;
+}
+
+.badge-warning {
+    background: #92400e;
+    color: white;
+    padding: 0.2rem 0.5rem;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 0.75rem;
+}
+
+.badge-ok {
+    background: #047857;
+    color: white;
+    padding: 0.2rem 0.5rem;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 0.75rem;
+}
+
+/* -------------------------------
+   7. Scrollbar (Chrome/Safari/Edge)
+--------------------------------*/
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1e293b;
+    border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: #475569;
+    border-radius: 999px;
+    border: 2px solid #1e293b;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: #64748b;
+}
+
+/* -------------------------------
+   8. QR Canvas
+--------------------------------*/
+.qr-van-card canvas {
+    max-width: 100%;
+    height: auto;
+}
+
+#modal-composite-canvas {
+    max-width: 100%;
+    height: auto;
+}
+
+/* -------------------------------
+   9. Responsive tweaks
+--------------------------------*/
 @media (max-width: 640px) {
-  .van-card, .stock-item-card { padding: .75rem; }
-  header h1 { font-size: 1.5rem; }
+    .van-card,
+    .stock-item-card,
+    .history-entry-card,
+    .guantera-card {
+        padding: 0.75rem;
+    }
+
+    header h1 {
+        font-size: 1.7rem;
+    }
 }
